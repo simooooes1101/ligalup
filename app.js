@@ -17,9 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'u6', nome: 'Amanda Apoio', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true }
         ],
         eventos: [
-            { id: 'e1', nome: 'Cervejada de Integração LUP', data_evento: '2026-06-12 18:00', local: 'Arena LUP', orcamento_previsto: 12000.00, status_aprovacao: 'Aprovado', criador_id: 'u3' },
-            { id: 'e2', nome: 'InterMed São Paulo', data_evento: '2026-09-05 08:00', local: 'Olímpia - SP', orcamento_previsto: 25000.00, status_aprovacao: 'Aguardando Tesouraria', criador_id: 'u4' },
-            { id: 'e3', nome: 'Treino Geral de Cheerleaders', data_evento: '2026-06-02 19:30', local: 'Ginásio B', orcamento_previsto: 350.00, status_aprovacao: 'Rascunho', criador_id: 'u1' }
+            { id: 'e1', nome: 'Cervejada de Integração LUP', data_evento: '2026-06-12 18:00', local: 'Arena LUP', orcamento_previsto: 12000.00, status_aprovacao: 'Aprovado', tipo: 'Social', valor_taxa_base: 80.00, criador_id: 'u3' },
+            { id: 'e2', nome: 'InterMed São Paulo', data_evento: '2026-09-05 08:00', local: 'Olímpia - SP', orcamento_previsto: 25000.00, status_aprovacao: 'Aguardando Tesouraria', tipo: 'Competição', valor_taxa_base: 0.00, criador_id: 'u4' },
+            { id: 'e3', nome: 'Treino Geral de Cheerleaders', data_evento: '2026-06-02 19:30', local: 'Ginásio B', orcamento_previsto: 350.00, status_aprovacao: 'Rascunho', tipo: 'Institucional', valor_taxa_base: 0.00, criador_id: 'u1' }
         ],
         tarefas_logistica: [
             { id: 't1', evento_id: 'e1', descricao: 'Aluguel do som e iluminação', data_prazo: '2026-06-10', responsavel_id: 'u6', status: 'Concluído' },
@@ -50,6 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
         calendario_editorial: [
             { id: 'ce1', evento_id: 'e1', plataforma: 'Instagram', data_publicacao: '2026-06-01 12:00', descricao: 'Post oficial de venda de ingressos do primeiro lote', responsavel_id: 'u3' }
         ],
+        cronograma_postagens: [
+            { id: 'cp1', evento_id: 'e1', plataforma: 'Instagram', tipo_conteudo: 'Feed', data_publicacao: '2026-06-01 12:00', descricao: 'Post oficial de venda de ingressos do primeiro lote', status: 'Agendado' }
+        ],
+        escalacoes: [],
+        participantes_evento: [
+            { id: 'pe1', evento_id: 'e1', nome: 'Mateus Silva Ramos', ra_matricula: '22.01948-2', valor_cobrado: 80.00, status_pagamento: 'Pago', forma_pagamento: 'Pix', data_pagamento: '2026-05-20', obs: 'Valor integral' },
+            { id: 'pe2', evento_id: 'e1', nome: 'Gabriela Mendes Costa', ra_matricula: '23.00341-9', valor_cobrado: 60.00, status_pagamento: 'Pendente', forma_pagamento: 'Pix', data_pagamento: null, obs: 'Desconto atleta' }
+        ],
         lancamentos_financeiros: [
             { id: 'lf1', tipo: 'Entrada', categoria: 'Patrocínio Master', valor: 8000.00, data_competencia: '2026-05-10', status_conciliacao: true, evento_id: null, produto_id: null },
             { id: 'lf2', tipo: 'Entrada', categoria: 'Venda Moletom', valor: 3840.00, data_competencia: '2026-05-15', status_conciliacao: true, evento_id: null, produto_id: 'p1' },
@@ -69,8 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'log2', usuario_id: 'u4', tipo_notificacao: 'Email', gatilho_regra: 'ATLETA_BARRADO', destinatario_email: 'esportes@atleticalup.com.br', status_entrega: 'FALHA', data_envio: '2026-05-22 15:30', erro_detalhe: 'Try/catch exception: Resend API Connection Timeout. Mailbox unavailable.' }
         ],
         fornecedores: [
-            { id: 'f1', nome: 'Confecções Estrela Ltda.', contato: 'Roberto Santos', telefone: '(11) 98765-4321', email: 'comercial@estrela.com', tipo_produto: 'Camisetas, Moletons', obs: 'Prazo de entrega: 15 dias úteis' },
-            { id: 'f2', nome: 'BrindesJá Promoções', contato: 'Fernanda Lima', telefone: '(21) 91234-5678', email: 'vendas@brindesja.com', tipo_produto: 'Canecas, Chaveiros', obs: 'Pedido mínimo: 50 unidades' }
+            { id: 'f1', nome: 'Confecções Estrela Ltda.', contato: 'Roberto Santos', telefone: '(11) 98765-4321', email: 'comercial@estrela.com', tipo_produto: 'Camisetas, Moletons', categoria_servico: 'Vestuário', obs: 'Prazo de entrega: 15 dias úteis' },
+            { id: 'f2', nome: 'BrindesJá Promoções', contato: 'Fernanda Lima', telefone: '(21) 91234-5678', email: 'vendas@brindesja.com', tipo_produto: 'Canecas, Chaveiros', categoria_servico: 'Brindes', obs: 'Pedido mínimo: 50 unidades' }
         ],
         pedidos_compra: [
             { id: 'pc1', fornecedor_id: 'f1', produto_id: 'p1', tamanho: 'M', quantidade: 30, data_previsao: '2026-06-15', status: 'Pendente' },
@@ -80,6 +88,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Usuário logado — preenchido após autenticação
     let currentUser = null;
+
+    // Estado de seleção para marketing, esportes e financeiro (Fase 4)
+    let selectedMarketingEventId = '';
+    let selectedSportsEventId = '';
+    let selectedSportsModalityId = '';
+    let pendingRoster = []; // Lista de objetos { atletaId, funcao, observacao } na escalação pendente
+    let selectedFinanceEventId = '';
 
     // URL base do backend (tenta localhost em dev)
     const API_BASE = 'http://localhost:5000';
@@ -470,14 +485,14 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         // Simula INSERT em Fornecedores
-        insertFornecedor: function(nome, contato, telefone, email, tipo_produto, obs) {
-            logSQL(`INSERT INTO fornecedores (nome, contato, telefone, email, tipo_produto, obs) VALUES (...);`, 'query');
-            if (!nome || !tipo_produto) {
-                showDBErrorDialog('23502 (Not Null Violation)', 'fornecedores.nome', 'Nome e tipo de produto são campos obrigatórios.');
+        insertFornecedor: function(nome, contato, telefone, email, tipo_produto, categoria_servico, obs) {
+            logSQL(`INSERT INTO fornecedores (nome, contato, telefone, email, tipo_produto, categoria_servico, obs) VALUES (...);`, 'query');
+            if (!nome || !tipo_produto || !categoria_servico) {
+                showDBErrorDialog('23502 (Not Null Violation)', 'fornecedores.nome', 'Nome, tipo de produto e categoria são campos obrigatórios.');
                 return false;
             }
             const newId = 'f_' + Date.now();
-            DB.fornecedores.push({ id: newId, nome, contato, telefone, email, tipo_produto, obs });
+            DB.fornecedores.push({ id: newId, nome, contato, telefone, email, tipo_produto, categoria_servico, obs });
             logSQL(`Fornecedor '${nome}' cadastrado com sucesso (ID: ${newId}).`, 'success');
             refreshAllUI();
             return newId;
@@ -571,6 +586,200 @@ document.addEventListener('DOMContentLoaded', () => {
                 rbacSelect.appendChild(newOpt);
             }
 
+            refreshAllUI();
+            return true;
+        },
+
+        // --- MÉTODOS DE MARKETING (Fase 4) ---
+        insertCronogramaPostagem: function(eventoId, plataforma, tipo_conteudo, data_publicacao, descricao) {
+            logSQL(`INSERT INTO cronograma_postagens (evento_id, plataforma, tipo_conteudo, data_publicacao, descricao, status) VALUES ('${eventoId}', '${plataforma}', '${tipo_conteudo}', '${data_publicacao}', '${descricao}', 'Agendado');`, 'query');
+            const newId = 'cp_' + Date.now();
+            DB.cronograma_postagens.push({
+                id: newId,
+                evento_id: eventoId,
+                plataforma: plataforma,
+                tipo_conteudo: tipo_conteudo,
+                data_publicacao: data_publicacao.replace('T', ' '),
+                descricao: descricao,
+                status: 'Agendado'
+            });
+            logSQL(`Postagem agendada com sucesso (ID: ${newId}).`, 'success');
+            refreshAllUI();
+            return newId;
+        },
+        updateCronogramaPostagemStatus: function(postId, status) {
+            const post = DB.cronograma_postagens.find(p => p.id === postId);
+            if (!post) return false;
+            logSQL(`UPDATE cronograma_postagens SET status = '${status}' WHERE id = '${postId}';`, 'query');
+            post.status = status;
+            logSQL(`Status da postagem '${postId}' atualizado para '${status}'.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+        deleteCronogramaPostagem: function(postId) {
+            const idx = DB.cronograma_postagens.findIndex(p => p.id === postId);
+            if (idx === -1) return false;
+            logSQL(`DELETE FROM cronograma_postagens WHERE id = '${postId}';`, 'query');
+            DB.cronograma_postagens.splice(idx, 1);
+            logSQL(`Postagem '${postId}' removida com sucesso.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+
+        // --- MÉTODOS DE ESPORTES (Fase 4) ---
+        insertModalidade: function(nome, coordenadorId) {
+            logSQL(`INSERT INTO modalidades (nome, coordenador_id) VALUES ('${nome}', '${coordenadorId}');`, 'query');
+            if (!nome) {
+                alert('Nome da modalidade é obrigatório!');
+                return false;
+            }
+            const newId = 'm_' + Date.now();
+            DB.modalidades.push({ id: newId, nome: nome, coordenador_id: coordenadorId || null });
+            logSQL(`Modalidade '${nome}' cadastrada com sucesso (ID: ${newId}).`, 'success');
+            refreshAllUI();
+            return newId;
+        },
+        deleteModalidade: function(modId) {
+            const idx = DB.modalidades.findIndex(m => m.id === modId);
+            if (idx === -1) return false;
+            const mod = DB.modalidades[idx];
+            logSQL(`DELETE FROM modalidades WHERE id = '${modId}';`, 'query');
+            // Remove atletas associados
+            DB.atletas = DB.atletas.filter(a => a.modalidade_id !== modId);
+            DB.modalidades.splice(idx, 1);
+            logSQL(`Modalidade '${mod.nome}' e seus atletas associados foram excluídos com sucesso.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+        deleteAtleta: function(atletaId) {
+            const idx = DB.atletas.findIndex(a => a.id === atletaId);
+            if (idx === -1) return false;
+            const athlete = DB.atletas[idx];
+            logSQL(`DELETE FROM atletas WHERE id = '${atletaId}';`, 'query');
+            DB.atletas.splice(idx, 1);
+            logSQL(`Atleta '${athlete.nome}' excluído com sucesso.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+        saveEscalacao: function(eventoId, modalidadeId, athleteRoles) {
+            logSQL(`DELETE FROM escalacoes WHERE evento_id = '${eventoId}' AND modalidade_id = '${modalidadeId}';`, 'query');
+            logSQL(`INSERT INTO escalacoes (evento_id, modalidade_id, atleta_id, funcao, observacao) VALUES (...);`, 'query');
+            
+            // Delete previous roster for this event & modality
+            DB.escalacoes = DB.escalacoes.filter(esc => !(esc.evento_id === eventoId && esc.modalidade_id === modalidadeId));
+            
+            // Insert new roster
+            athleteRoles.forEach(ar => {
+                const newId = 'esc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                DB.escalacoes.push({
+                    id: newId,
+                    evento_id: eventoId,
+                    modalidade_id: modalidadeId,
+                    atleta_id: ar.atleta_id,
+                    funcao: ar.funcao || 'Titular',
+                    observacao: ar.observacao || ''
+                });
+            });
+            
+            logSQL(`Escalação com ${athleteRoles.length} atletas salva com sucesso para o evento '${eventoId}' na modalidade '${modalidadeId}'.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+
+        // --- MÉTODOS FINANCEIRO/PARTICIPANTES (Fase 4) ---
+        insertParticipanteEvento: function(eventoId, nome, ra, valorCobrado, statusPagamento, formaPagamento, obs) {
+            logSQL(`INSERT INTO participantes_evento (evento_id, nome, ra_matricula, valor_cobrado, status_pagamento, forma_pagamento, obs) VALUES (...);`, 'query');
+            if (!nome) {
+                alert('Nome do participante é obrigatório!');
+                return false;
+            }
+            
+            const newId = 'pe_' + Date.now();
+            DB.participantes_evento.push({
+                id: newId,
+                evento_id: eventoId,
+                nome: nome,
+                ra_matricula: ra || '',
+                valor_cobrado: parseFloat(valorCobrado) || 0.00,
+                status_pagamento: statusPagamento || 'Pendente',
+                forma_pagamento: formaPagamento || 'Pix',
+                data_pagamento: statusPagamento === 'Pago' ? new Date().toISOString().split('T')[0] : null,
+                obs: obs || ''
+            });
+            logSQL(`Participante '${nome}' cadastrado para o evento com taxa de R$ ${parseFloat(valorCobrado).toFixed(2)}.`, 'success');
+            
+            if (statusPagamento === 'Pago') {
+                const newFinanceId = 'lf_' + Date.now();
+                const event = DB.eventos.find(e => e.id === eventoId);
+                DB.lancamentos_financeiros.push({
+                    id: newFinanceId,
+                    tipo: 'Entrada',
+                    categoria: `Ingresso: ${event ? event.nome : 'Evento'}`,
+                    valor: parseFloat(valorCobrado),
+                    data_competencia: new Date().toISOString().split('T')[0],
+                    status_conciliacao: false,
+                    evento_id: eventoId,
+                    produto_id: null
+                });
+                logSQL(`Trigger Automático: Lançamento de Entrada de R$ ${parseFloat(valorCobrado).toFixed(2)} criado no caixa referente ao ingresso de ${nome}.`, 'trigger');
+            }
+            
+            refreshAllUI();
+            return newId;
+        },
+        updateParticipanteEventoValor: function(partId, novoValor, obs) {
+            const part = DB.participantes_evento.find(p => p.id === partId);
+            if (!part) return false;
+            
+            logSQL(`UPDATE participantes_evento SET valor_cobrado = ${novoValor}, obs = '${obs}' WHERE id = '${partId}';`, 'query');
+            part.valor_cobrado = parseFloat(novoValor);
+            part.obs = obs;
+            logSQL(`Valor cobrado do participante '${part.nome}' atualizado para R$ ${parseFloat(novoValor).toFixed(2)}.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+        updateParticipanteEventoStatus: function(partId, status, formaPgto) {
+            const part = DB.participantes_evento.find(p => p.id === partId);
+            if (!part) return false;
+            
+            const oldStatus = part.status_pagamento;
+            if (oldStatus === status) return true;
+            
+            logSQL(`UPDATE participantes_evento SET status_pagamento = '${status}', forma_pagamento = '${formaPgto}' WHERE id = '${partId}';`, 'query');
+            part.status_pagamento = status;
+            part.forma_pagamento = formaPgto;
+            if (status === 'Pago') {
+                part.data_pagamento = new Date().toISOString().split('T')[0];
+                
+                const newFinanceId = 'lf_' + Date.now();
+                const event = DB.eventos.find(e => e.id === part.evento_id);
+                DB.lancamentos_financeiros.push({
+                    id: newFinanceId,
+                    tipo: 'Entrada',
+                    categoria: `Ingresso: ${event ? event.nome : 'Evento'}`,
+                    valor: part.valor_cobrado,
+                    data_competencia: new Date().toISOString().split('T')[0],
+                    status_conciliacao: false,
+                    evento_id: part.evento_id,
+                    produto_id: null
+                });
+                logSQL(`Trigger Automático: Lançamento de Entrada de R$ ${part.valor_cobrado.toFixed(2)} criado no caixa referente ao pagamento de ${part.nome}.`, 'trigger');
+            } else {
+                part.data_pagamento = null;
+            }
+            
+            logSQL(`Status de pagamento do participante '${part.nome}' alterado para '${status}'.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+        deleteParticipanteEvento: function(partId) {
+            const idx = DB.participantes_evento.findIndex(p => p.id === partId);
+            if (idx === -1) return false;
+            
+            const part = DB.participantes_evento[idx];
+            logSQL(`DELETE FROM participantes_evento WHERE id = '${partId}';`, 'query');
+            DB.participantes_evento.splice(idx, 1);
+            logSQL(`Participante '${part.nome}' removido do evento.`, 'success');
             refreshAllUI();
             return true;
         }
@@ -991,7 +1200,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span><i class="fas fa-map-marker-alt"></i> ${evt.local}</span>
                     <span><i class="fas fa-calendar-alt"></i> ${evt.data_evento}</span>
                 </div>
-                <div class="event-budget">
+                <div class="event-details" style="margin-top: 4px; display: flex; gap: 4px; align-items: center;">
+                    <span class="badge badge-secondary" style="font-size:10px; padding: 2px 6px;">${evt.tipo || 'Institucional'}</span>
+                    ${(evt.tipo === 'Social' || evt.tipo === 'Misto' || evt.tipo === 'Competição') && evt.valor_taxa_base > 0 ? `
+                        <span class="badge" style="font-size:10px; padding: 2px 6px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);"><i class="fas fa-ticket-alt"></i> R$ ${evt.valor_taxa_base.toFixed(2)}</span>
+                    ` : ''}
+                </div>
+                <div class="event-budget" style="margin-top: 8px;">
                     <span>Orçamento: R$ ${evt.orcamento_previsto.toFixed(2)}</span>
                     ${evt.status_aprovacao === 'Aguardando Tesouraria' ? `
                         <button class="btn-approve-event" data-evt-id="${evt.id}">
@@ -1032,32 +1247,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Populating the select dropdown for editorial calendar event list
-        const calendarSelect = document.getElementById('marketing-evt-select');
-        calendarSelect.innerHTML = '<option value="">Selecione um Evento...</option>';
-        DB.eventos.forEach(e => {
-            const opt = document.createElement('option');
-            opt.value = e.id;
-            opt.innerText = `${e.nome} (${e.status_aprovacao})`;
-            calendarSelect.appendChild(opt);
         });
+    }
 
-        // Editorial Calendar render list
-        const editorialList = document.getElementById('editorial-list');
-        editorialList.innerHTML = '';
-        DB.calendario_editorial.forEach(post => {
-            const evt = DB.eventos.find(e => e.id === post.evento_id);
-            const author = DB.usuarios.find(u => u.id === post.responsavel_id);
-            const item = document.createElement('div');
-            item.className = 'list-group-item';
-            item.innerHTML = `
-                <div>
-                    <div class="list-group-item-title">${post.plataforma} - ${evt.nome}</div>
-                    <div class="list-group-item-desc">📅 Publicação em: ${post.data_publicacao} | Responsável: ${author.nome}</div>
-                    <div style="font-size:12px; margin-top:6px; color:#fff;">"${post.descricao}"</div>
-                </div>
-            `;
-            editorialList.appendChild(item);
+    // Toggle Taxa Base visibility based on Event Type
+    const evtTipoSelect = document.getElementById('evt-tipo');
+    if (evtTipoSelect) {
+        evtTipoSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            const groupTaxa = document.getElementById('group-taxa-base');
+            if (groupTaxa) {
+                if (val === 'Social' || val === 'Misto' || val === 'Competição') {
+                    groupTaxa.style.display = 'block';
+                } else {
+                    groupTaxa.style.display = 'none';
+                    document.getElementById('evt-taxa-base').value = '0.00';
+                }
+            }
         });
     }
 
@@ -1068,6 +1274,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = document.getElementById('evt-data').value;
         const local = document.getElementById('evt-local').value;
         const orcamento = parseFloat(document.getElementById('evt-orcamento').value) || 0;
+        const tipo = document.getElementById('evt-tipo').value;
+        const taxaBase = parseFloat(document.getElementById('evt-taxa-base').value) || 0;
 
         const newId = 'e_' + Date.now();
         const event = {
@@ -1077,31 +1285,155 @@ document.addEventListener('DOMContentLoaded', () => {
             local: local,
             orcamento_previsto: orcamento,
             status_aprovacao: 'Rascunho',
+            tipo: tipo,
+            valor_taxa_base: taxaBase,
             criador_id: currentUser.id
         };
 
         DB.eventos.push(event);
-        logSQL(`INSERT INTO eventos (nome, data_evento, local, orcamento_previsto, status_aprovacao, criador_id) VALUES ('${nome}', '${data}', '${local}', ${orcamento}, 'Rascunho', '${currentUser.id}');`, 'query');
+        logSQL(`INSERT INTO eventos (nome, data_evento, local, orcamento_previsto, status_aprovacao, tipo, valor_taxa_base, criador_id) VALUES ('${nome}', '${data}', '${local}', ${orcamento}, 'Rascunho', '${tipo}', ${taxaBase}, '${currentUser.id}');`, 'query');
         logSQL(`Event successfully created in state 'Rascunho'. Please drag or push it to 'Aguardando Tesouraria' to request funds.`, 'success');
         
         document.getElementById('form-create-event').reset();
+        const groupTaxa = document.getElementById('group-taxa-base');
+        if (groupTaxa) groupTaxa.style.display = 'none';
         refreshAllUI();
     });
 
-    // Event Handler: Create Marketing editorial calendar post (triggers RN-EV-01)
-    document.getElementById('btn-add-marketing').addEventListener('click', () => {
-        const evtId = document.getElementById('marketing-evt-select').value;
-        const plataforma = document.getElementById('marketing-platform').value;
-        const data = document.getElementById('marketing-date').value;
-        const desc = document.getElementById('marketing-desc').value;
+    // RENDER: MARKETING MODULE (Fase 4)
+    function renderMarketingModule() {
+        const mktEvtSelect = document.getElementById('mkt-evento-select');
+        if (!mktEvtSelect) return;
 
-        if (!evtId || !plataforma || !data || !desc) {
-            alert('Preencha todos os campos do calendário editorial!');
+        // Populate event select with approved events
+        const prevSelectValue = selectedMarketingEventId;
+        mktEvtSelect.innerHTML = '<option value="">Selecione um Evento...</option>';
+        
+        const approvedEvents = DB.eventos.filter(e => e.status_aprovacao === 'Aprovado');
+        approvedEvents.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.innerText = `${e.nome} (${e.tipo || 'Institucional'})`;
+            mktEvtSelect.appendChild(opt);
+        });
+
+        if (prevSelectValue && approvedEvents.some(e => e.id === prevSelectValue)) {
+            mktEvtSelect.value = prevSelectValue;
+            selectedMarketingEventId = prevSelectValue;
+        } else {
+            mktEvtSelect.value = '';
+            selectedMarketingEventId = '';
+        }
+
+        // Setup change listener once
+        if (!mktEvtSelect.dataset.listener) {
+            mktEvtSelect.addEventListener('change', (e) => {
+                selectedMarketingEventId = e.target.value;
+                renderMarketingModule();
+            });
+            mktEvtSelect.dataset.listener = 'true';
+        }
+
+        const container = document.getElementById('mkt-cronograma-container');
+        const placeholder = document.getElementById('mkt-no-evento-selected');
+
+        if (!selectedMarketingEventId) {
+            if (container) container.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'block';
             return;
         }
 
-        DB_Engine.insertCalendarioEditorial(evtId, plataforma, data.replace('T', ' '), desc);
-    });
+        if (container) container.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+
+        // Render table of post schedules
+        const tbody = document.querySelector('#mkt-posts-table tbody');
+        if (tbody) {
+            tbody.innerHTML = '';
+            const posts = DB.cronograma_postagens.filter(p => p.evento_id === selectedMarketingEventId);
+            
+            if (posts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">Nenhuma postagem agendada para este evento.</td></tr>';
+            } else {
+                posts.forEach(post => {
+                    const tr = document.createElement('tr');
+                    
+                    let statusBadge = '';
+                    if (post.status === 'Publicado') {
+                        statusBadge = `<span class="badge badge-success"><i class="fas fa-check-circle"></i> Publicado</span>`;
+                    } else if (post.status === 'Cancelado') {
+                        statusBadge = `<span class="badge badge-danger"><i class="fas fa-times-circle"></i> Cancelado</span>`;
+                    } else {
+                        statusBadge = `<span class="badge badge-warning"><i class="fas fa-clock"></i> Agendado</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td><b>${post.plataforma}</b> <span class="badge badge-secondary" style="font-size:10px;">${post.tipo_conteudo}</span></td>
+                        <td><code>${post.data_publicacao}</code></td>
+                        <td>${post.descricao}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                ${post.status === 'Agendado' ? `
+                                    <button class="btn btn-secondary btn-publish-post" data-post-id="${post.id}" style="padding:4px 8px; font-size:11px; background:var(--success-glow); color:var(--success);">
+                                        Publicar
+                                    </button>
+                                    <button class="btn btn-secondary btn-cancel-post" data-post-id="${post.id}" style="padding:4px 8px; font-size:11px; background:var(--danger-glow); color:var(--danger);">
+                                        Cancelar
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-secondary btn-delete-post" data-post-id="${post.id}" style="padding:4px 8px; font-size:11px;">
+                                    Excluir
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Attach button click listeners
+                tbody.querySelectorAll('.btn-publish-post').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-post-id');
+                        DB_Engine.updateCronogramaPostagemStatus(id, 'Publicado');
+                    });
+                });
+
+                tbody.querySelectorAll('.btn-cancel-post').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-post-id');
+                        DB_Engine.updateCronogramaPostagemStatus(id, 'Cancelado');
+                    });
+                });
+
+                tbody.querySelectorAll('.btn-delete-post').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-post-id');
+                        DB_Engine.deleteCronogramaPostagem(id);
+                    });
+                });
+            }
+        }
+    }
+
+    // Event Handler: Create Marketing Schedule Post
+    const formCreatePost = document.getElementById('form-create-post');
+    if (formCreatePost) {
+        formCreatePost.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!selectedMarketingEventId) {
+                alert('Selecione um evento primeiro!');
+                return;
+            }
+            const plataforma = document.getElementById('post-plataforma').value;
+            const tipo = document.getElementById('post-tipo').value;
+            const data = document.getElementById('post-data').value;
+            const desc = document.getElementById('post-descricao').value;
+
+            DB_Engine.insertCronogramaPostagem(selectedMarketingEventId, plataforma, tipo, data, desc);
+            formCreatePost.reset();
+        });
+    }
 
     // RENDER 3: PRODUCTS & INVENTORY
     function renderProductsModule() {
@@ -1210,184 +1542,770 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // RENDER 4: SPORTS & ATHLETES
+    // RENDER 4: SPORTS & ATHLETES (Fase 4)
     function renderSportsModule() {
         // Modalidades list
         const modalitiesTbody = document.querySelector('#modalities-table tbody');
-        modalitiesTbody.innerHTML = '';
-        DB.modalidades.forEach(mod => {
-            const manager = DB.usuarios.find(u => u.id === mod.coordenador_id);
-            const countAthletes = DB.atletas.filter(a => a.modalidade_id === mod.id).length;
-            
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${mod.nome}</b></td>
-                <td>${manager ? manager.nome : 'Nenhum'}</td>
-                <td><span class="badge badge-secondary">${countAthletes} atletas inscritos</span></td>
-            `;
-            modalitiesTbody.appendChild(tr);
-        });
+        if (modalitiesTbody) {
+            modalitiesTbody.innerHTML = '';
+            DB.modalidades.forEach(mod => {
+                const manager = DB.usuarios.find(u => u.id === mod.coordenador_id);
+                const countAthletes = DB.atletas.filter(a => a.modalidade_id === mod.id).length;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${mod.nome}</b></td>
+                    <td><span class="badge badge-secondary">${mod.categoria || 'Coletivo'}</span></td>
+                    <td>${manager ? manager.nome : 'Nenhum'}</td>
+                    <td><span class="badge badge-secondary">${countAthletes} atletas</span></td>
+                    <td>
+                        <button class="btn btn-secondary btn-delete-mod" data-mod-id="${mod.id}" style="padding:4px 8px; font-size:11px; background:var(--danger-glow); color:var(--danger);">
+                            <i class="fas fa-trash-alt"></i> Excluir
+                        </button>
+                    </td>
+                `;
+                modalitiesTbody.appendChild(tr);
+            });
+
+            // Modality Delete button listeners
+            document.querySelectorAll('.btn-delete-mod').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const modId = btn.getAttribute('data-mod-id');
+                    if (confirm('Tem certeza que deseja excluir esta modalidade? Todos os atletas e escalações dela também serão excluídos.')) {
+                        DB_Engine.deleteModalidade(modId);
+                    }
+                });
+            });
+        }
 
         // Athlete rows
         const athletesTbody = document.querySelector('#athletes-table tbody');
-        athletesTbody.innerHTML = '';
-        DB.atletas.forEach(athlete => {
-            const mod = DB.modalidades.find(m => m.id === athlete.modalidade_id);
-            const tr = document.createElement('tr');
-            
-            let statusBadge = '';
-            if (athlete.status_documentacao === 'Aprovado') {
-                statusBadge = `<span class="badge badge-success"><i class="fas fa-check-circle"></i> Aprovado (Elegível)</span>`;
-            } else if (athlete.status_documentacao === 'Rejeitado') {
-                statusBadge = `<span class="badge badge-danger"><i class="fas fa-times-circle"></i> Rejeitado (Impedido)</span>`;
-            } else {
-                statusBadge = `<span class="badge badge-warning"><i class="fas fa-clock"></i> Pendente</span>`;
-            }
+        if (athletesTbody) {
+            athletesTbody.innerHTML = '';
+            DB.atletas.forEach(athlete => {
+                const mod = DB.modalidades.find(m => m.id === athlete.modalidade_id);
+                const tr = document.createElement('tr');
+                
+                let statusBadge = '';
+                if (athlete.status_documentacao === 'Aprovado') {
+                    statusBadge = `<span class="badge badge-success"><i class="fas fa-check-circle"></i> Aprovado (Elegível)</span>`;
+                } else if (athlete.status_documentacao === 'Rejeitado') {
+                    statusBadge = `<span class="badge badge-danger"><i class="fas fa-times-circle"></i> Rejeitado (Impedido)</span>`;
+                } else {
+                    statusBadge = `<span class="badge badge-warning"><i class="fas fa-clock"></i> Pendente</span>`;
+                }
 
-            tr.innerHTML = `
-                <td><b>${athlete.nome}</b></td>
-                <td><code>${athlete.ra_matricula}</code></td>
-                <td><span class="badge badge-secondary">${mod.nome}</span></td>
-                <td>${statusBadge}</td>
-                <td>
-                    <div style="display:flex; gap:6px;">
-                        <button class="btn btn-secondary btn-approve-doc" data-ath-id="${athlete.id}" style="padding:4px 8px; font-size:11px; background:var(--success-glow); color:var(--success);">
-                            Validar
+                tr.innerHTML = `
+                    <td><b>${athlete.nome}</b></td>
+                    <td><code>${athlete.ra_matricula}</code></td>
+                    <td><span class="badge badge-secondary">${mod ? mod.nome : '—'}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-secondary btn-approve-doc" data-ath-id="${athlete.id}" style="padding:4px 8px; font-size:11px; background:var(--success-glow); color:var(--success);">
+                                Validar
+                            </button>
+                            <button class="btn btn-secondary btn-reject-doc" data-ath-id="${athlete.id}" style="padding:4px 8px; font-size:11px; background:var(--danger-glow); color:var(--danger);">
+                                Reprovar
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary btn-delete-athlete" data-ath-id="${athlete.id}" style="padding:4px 8px; font-size:11px; background:var(--danger-glow); color:var(--danger);">
+                            <i class="fas fa-trash-alt"></i> Excluir
                         </button>
-                        <button class="btn btn-secondary btn-reject-doc" data-ath-id="${athlete.id}" style="padding:4px 8px; font-size:11px; background:var(--danger-glow); color:var(--danger);">
-                            Reprovar
-                        </button>
-                    </div>
-                </td>
-            `;
-            athletesTbody.appendChild(tr);
-        });
-
-        // Doc approval button click listeners (tests RN-ESP-01)
-        document.querySelectorAll('.btn-approve-doc').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const athId = btn.getAttribute('data-ath-id');
-                DB_Engine.updateAthleteDocStatus(athId, 'Aprovado');
+                    </td>
+                `;
+                athletesTbody.appendChild(tr);
             });
-        });
 
-        document.querySelectorAll('.btn-reject-doc').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const athId = btn.getAttribute('data-ath-id');
-                DB_Engine.updateAthleteDocStatus(athId, 'Rejeitado');
+            // Doc approval button click listeners (tests RN-ESP-01)
+            document.querySelectorAll('.btn-approve-doc').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const athId = btn.getAttribute('data-ath-id');
+                    DB_Engine.updateAthleteDocStatus(athId, 'Aprovado');
+                });
             });
-        });
+
+            document.querySelectorAll('.btn-reject-doc').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const athId = btn.getAttribute('data-ath-id');
+                    DB_Engine.updateAthleteDocStatus(athId, 'Rejeitado');
+                });
+            });
+
+            // Athlete Delete button listeners
+            document.querySelectorAll('.btn-delete-athlete').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const athId = btn.getAttribute('data-ath-id');
+                    if (confirm('Deseja realmente excluir este atleta?')) {
+                        DB_Engine.deleteAtleta(athId);
+                    }
+                });
+            });
+        }
 
         // Modalidade select list in athlete enrollment form
         const modSelect = document.getElementById('enroll-mod-select');
-        modSelect.innerHTML = '<option value="">Selecione...</option>';
-        DB.modalidades.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.id;
-            opt.innerText = m.nome;
-            modSelect.appendChild(opt);
-        });
+        if (modSelect) {
+            modSelect.innerHTML = '<option value="">Selecione...</option>';
+            DB.modalidades.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.innerText = m.nome;
+                modSelect.appendChild(opt);
+            });
+        }
+
+        // Populate coordinators list in modality creation form
+        const coordSelect = document.getElementById('mod-coordenador');
+        if (coordSelect) {
+            coordSelect.innerHTML = '<option value="">Selecione...</option>';
+            DB.usuarios.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.innerText = `${u.nome} (${u.cargo} / ${u.diretoria})`;
+                coordSelect.appendChild(opt);
+            });
+        }
+
+        // --- ROSTER BUILDER RENDERING ---
+        renderRosterBuilder();
     }
 
-    // Event Handler: Register Athlete
-    document.getElementById('btn-enroll-athlete').addEventListener('click', () => {
-        const name = document.getElementById('enroll-name').value;
-        const ra = document.getElementById('enroll-ra').value;
-        const modId = document.getElementById('enroll-mod-select').value;
+    // --- FUNCTION: RENDER ROSTER BUILDER ---
+    function renderRosterBuilder() {
+        const rosterEvtSelect = document.getElementById('roster-evento-select');
+        const rosterModSelect = document.getElementById('roster-mod-select');
+        if (!rosterEvtSelect || !rosterModSelect) return;
 
-        if (!name || !ra || !modId) {
-            alert('Preencha todos os campos do cadastro do atleta!');
+        // Populate event selector (Aprovado + tipo === Competição)
+        if (!rosterEvtSelect.dataset.populated) {
+            rosterEvtSelect.innerHTML = '<option value="">Selecione um Evento...</option>';
+            const compEvents = DB.eventos.filter(e => e.status_aprovacao === 'Aprovado' && e.tipo === 'Competição');
+            compEvents.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.id;
+                opt.innerText = e.nome;
+                rosterEvtSelect.appendChild(opt);
+            });
+            rosterEvtSelect.dataset.populated = 'true';
+        }
+
+        // Populate modality selector
+        if (!rosterModSelect.dataset.populated) {
+            rosterModSelect.innerHTML = '<option value="">Selecione uma Modalidade...</option>';
+            DB.modalidades.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.innerText = m.nome;
+                rosterModSelect.appendChild(opt);
+            });
+            rosterModSelect.dataset.populated = 'true';
+        }
+
+        // Listeners for changes in selections
+        if (!rosterEvtSelect.dataset.listener) {
+            rosterEvtSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (selectedSportsEventId !== val) {
+                    selectedSportsEventId = val;
+                    pendingRoster = []; // Clear pending list
+                    renderRosterBuilder();
+                }
+            });
+            rosterEvtSelect.dataset.listener = 'true';
+        }
+
+        if (!rosterModSelect.dataset.listener) {
+            rosterModSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (selectedSportsModalityId !== val) {
+                    selectedSportsModalityId = val;
+                    pendingRoster = []; // Clear pending list
+                    renderRosterBuilder();
+                }
+            });
+            rosterModSelect.dataset.listener = 'true';
+        }
+
+        const rosterInterface = document.getElementById('roster-builder-interface');
+        const rosterNoSelection = document.getElementById('roster-no-selection');
+        const rosterSavedContainer = document.getElementById('roster-saved-container');
+
+        if (!selectedSportsEventId || !selectedSportsModalityId) {
+            if (rosterInterface) rosterInterface.style.display = 'none';
+            if (rosterSavedContainer) rosterSavedContainer.style.display = 'none';
+            if (rosterNoSelection) rosterNoSelection.style.display = 'block';
             return;
         }
 
-        const newId = 'a_' + Date.now();
-        DB.atletas.push({
-            id: newId,
-            nome: name,
-            ra_matricula: ra,
-            modalidade_id: modId,
-            status_documentacao: 'Pendente' // Default is pending for Juridico approval
+        if (rosterInterface) rosterInterface.style.display = 'block';
+        if (rosterNoSelection) rosterNoSelection.style.display = 'none';
+
+        // Load existing saved roster into pendingRoster if pendingRoster is empty
+        const savedEscalacoes = DB.escalacoes.filter(esc => esc.evento_id === selectedSportsEventId && esc.modalidade_id === selectedSportsModalityId);
+        if (pendingRoster.length === 0 && savedEscalacoes.length > 0) {
+            savedEscalacoes.forEach(esc => {
+                pendingRoster.push({
+                    atleta_id: esc.atleta_id,
+                    funcao: esc.funcao,
+                    observacao: esc.observacao
+                });
+            });
+        }
+
+        // 1. Render Available Athletes (filtered by modality)
+        const availableDiv = document.getElementById('roster-available-athletes');
+        if (availableDiv) {
+            availableDiv.innerHTML = '';
+            const modalityAthletes = DB.atletas.filter(a => a.modalidade_id === selectedSportsModalityId);
+            
+            if (modalityAthletes.length === 0) {
+                availableDiv.innerHTML = '<p style="font-size:12px; color:var(--text-secondary); text-align:center; padding:10px;">Nenhum atleta inscrito nesta modalidade.</p>';
+            } else {
+                modalityAthletes.forEach(ath => {
+                    const isIncluded = pendingRoster.some(item => item.atleta_id === ath.id);
+                    const card = document.createElement('div');
+                    card.className = 'glass-card-item';
+                    card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm); border:1px solid var(--border-glass);';
+                    
+                    let badge = '';
+                    let disabled = false;
+                    if (ath.status_documentacao === 'Aprovado') {
+                        badge = '<span class="badge badge-success" style="font-size:10px;">🟢 Apto</span>';
+                    } else if (ath.status_documentacao === 'Rejeitado') {
+                        badge = '<span class="badge badge-danger" style="font-size:10px;">🔴 Reprovado</span>';
+                        disabled = true;
+                    } else {
+                        badge = '<span class="badge badge-warning" style="font-size:10px;">🟡 Pendente</span>';
+                        disabled = true;
+                    }
+
+                    card.innerHTML = `
+                        <div>
+                            <div style="font-size:12px; font-weight:bold;">${ath.nome}</div>
+                            <div style="font-size:10px; color:var(--text-secondary);">RA: ${ath.ra_matricula} | ${badge}</div>
+                        </div>
+                        <div>
+                            ${isIncluded ? `
+                                <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" disabled>
+                                    Incluído
+                                </button>
+                            ` : `
+                                <button class="btn btn-accent btn-include-athlete" data-ath-id="${ath.id}" style="padding:4px 8px; font-size:11px;" ${disabled ? 'disabled' : ''}>
+                                    <i class="fas fa-plus"></i> Incluir
+                                </button>
+                            `}
+                        </div>
+                    `;
+                    availableDiv.appendChild(card);
+                });
+
+                // Include athlete click listeners
+                availableDiv.querySelectorAll('.btn-include-athlete').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const athId = btn.getAttribute('data-ath-id');
+                        pendingRoster.push({
+                            atleta_id: athId,
+                            funcao: 'Titular',
+                            observacao: ''
+                        });
+                        renderRosterBuilder();
+                    });
+                });
+            }
+        }
+
+        // 2. Render Roster (pending selection)
+        const currentDiv = document.getElementById('roster-current-athletes');
+        if (currentDiv) {
+            currentDiv.innerHTML = '';
+            if (pendingRoster.length === 0) {
+                currentDiv.innerHTML = '<p style="font-size:12px; color:var(--text-secondary); text-align:center; padding:10px;">Nenhum atleta incluído nesta escalação ainda.</p>';
+            } else {
+                pendingRoster.forEach((item, index) => {
+                    const ath = DB.atletas.find(a => a.id === item.atleta_id);
+                    if (!ath) return;
+
+                    const row = document.createElement('div');
+                    row.className = 'glass-card-item';
+                    row.style.cssText = 'display:flex; flex-direction:column; gap:8px; padding:12px; background:rgba(255,255,255,0.03); border-radius:var(--radius-sm); border:1px solid var(--border-glass);';
+                    
+                    row.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <span style="font-size:12px; font-weight:bold; color:var(--accent);">${ath.nome}</span>
+                                <span style="font-size:10px; color:var(--text-secondary);"> (${ath.ra_matricula})</span>
+                            </div>
+                            <button class="btn btn-secondary btn-remove-roster" data-index="${index}" style="padding:2px 6px; font-size:10px; background:rgba(239,68,68,0.1); color:#ef4444;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="form-grid" style="grid-template-columns:1fr 1.5fr; gap:8px; margin-top:4px;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label style="font-size:10px; margin-bottom:2px;">Função</label>
+                                <select class="form-control roster-funcao-select" data-index="${index}" style="font-size:11px; padding:4px 8px; height:auto;">
+                                    <option value="Titular" ${item.funcao === 'Titular' ? 'selected' : ''}>Titular</option>
+                                    <option value="Reserva" ${item.funcao === 'Reserva' ? 'selected' : ''}>Reserva</option>
+                                    <option value="Capitão" ${item.funcao === 'Capitão' ? 'selected' : ''}>Capitão</option>
+                                    <option value="Staff Técnico" ${item.funcao === 'Staff Técnico' ? 'selected' : ''}>Staff Técnico</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label style="font-size:10px; margin-bottom:2px;">Observação</label>
+                                <input type="text" class="form-control roster-obs-input" data-index="${index}" value="${item.observacao || ''}" placeholder="Ex: Camisa 10 / lesão recente..." style="font-size:11px; padding:4px 8px; height:auto;">
+                            </div>
+                        </div>
+                    `;
+                    currentDiv.appendChild(row);
+                });
+
+                // Bind remove buttons
+                currentDiv.querySelectorAll('.btn-remove-roster').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const index = parseInt(btn.getAttribute('data-index'));
+                        pendingRoster.splice(index, 1);
+                        renderRosterBuilder();
+                    });
+                });
+
+                // Bind change in function select
+                currentDiv.querySelectorAll('.roster-funcao-select').forEach(select => {
+                    select.addEventListener('change', (e) => {
+                        const idx = parseInt(select.getAttribute('data-index'));
+                        pendingRoster[idx].funcao = e.target.value;
+                    });
+                });
+
+                // Bind change in observation input
+                currentDiv.querySelectorAll('.roster-obs-input').forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        const idx = parseInt(input.getAttribute('data-index'));
+                        pendingRoster[idx].observacao = e.target.value;
+                    });
+                });
+            }
+        }
+
+        // 3. Render Saved Roster Table
+        if (savedEscalacoes.length > 0) {
+            if (rosterSavedContainer) rosterSavedContainer.style.display = 'block';
+            const tbody = document.querySelector('#roster-saved-table tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                savedEscalacoes.forEach(esc => {
+                    const ath = DB.atletas.find(a => a.id === esc.atleta_id);
+                    const mod = DB.modalidades.find(m => m.id === esc.modalidade_id);
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><b>${ath ? ath.nome : '—'}</b></td>
+                        <td><code>${ath ? ath.ra_matricula : '—'}</code></td>
+                        <td><span class="badge badge-secondary">${mod ? mod.nome : '—'}</span></td>
+                        <td><span class="badge badge-accent">${esc.funcao}</span></td>
+                        <td>${esc.observacao || '<span style="color:var(--text-muted);">—</span>'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } else {
+            if (rosterSavedContainer) rosterSavedContainer.style.display = 'none';
+        }
+    }
+
+    // --- EVENT LISTENERS SPORTS MODULE ---
+    
+    // Handler: Create Modality Form
+    const formCreateModality = document.getElementById('form-create-modality');
+    if (formCreateModality) {
+        formCreateModality.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('mod-nome').value;
+            const coordId = document.getElementById('mod-coordenador').value;
+            const categoria = document.getElementById('mod-categoria').value;
+            
+            // Create a custom insertion to include the category!
+            logSQL(`INSERT INTO modalidades (nome, coordenador_id, categoria) VALUES ('${nome}', '${coordId}', '${categoria}');`, 'query');
+            const newId = 'm_' + Date.now();
+            DB.modalidades.push({ id: newId, nome: nome, coordenador_id: coordId || null, categoria: categoria });
+            logSQL(`Modalidade '${nome}' de categoria '${categoria}' cadastrada com sucesso.`, 'success');
+            
+            // Reset fields
+            document.getElementById('mod-nome').value = '';
+            document.getElementById('mod-coordenador').value = '';
+            
+            // Rebuild selects that depend on modalities
+            const rosterModSelect = document.getElementById('roster-mod-select');
+            if (rosterModSelect) rosterModSelect.removeAttribute('data-populated');
+            const enrollModSelect = document.getElementById('enroll-mod-select');
+            if (enrollModSelect) enrollModSelect.removeAttribute('data-populated');
+            
+            refreshAllUI();
         });
+    }
 
-        logSQL(`INSERT INTO atletas (nome, ra_matricula, modalidade_id, status_documentacao) VALUES ('${name}', '${ra}', '${modId}', 'Pendente');`, 'query');
-        logSQL(`Atleta cadastrado com sucesso. Status inicial da documentação: 'Pendente'. Requer análise jurídica para homologação de elegibilidade desportiva (RN-ESP-01).`, 'success');
+    // Handler: Register Athlete
+    const btnEnrollAthlete = document.getElementById('btn-enroll-athlete');
+    if (btnEnrollAthlete) {
+        // Remove old listener if double defined or just replace
+        btnEnrollAthlete.replaceWith(btnEnrollAthlete.cloneNode(true));
+        document.getElementById('btn-enroll-athlete').addEventListener('click', () => {
+            const name = document.getElementById('enroll-name').value;
+            const ra = document.getElementById('enroll-ra').value;
+            const modId = document.getElementById('enroll-mod-select').value;
 
-        document.getElementById('enroll-name').value = '';
-        document.getElementById('enroll-ra').value = '';
-        refreshAllUI();
-    });
+            if (!name || !ra || !modId) {
+                alert('Preencha todos os campos do cadastro do atleta!');
+                return;
+            }
+
+            const newId = 'a_' + Date.now();
+            DB.atletas.push({
+                id: newId,
+                nome: name,
+                ra_matricula: ra,
+                modalidade_id: modId,
+                status_documentacao: 'Pendente' // Default is pending for Juridico approval
+            });
+
+            logSQL(`INSERT INTO atletas (nome, ra_matricula, modalidade_id, status_documentacao) VALUES ('${name}', '${ra}', '${modId}', 'Pendente');`, 'query');
+            logSQL(`Atleta cadastrado com sucesso. Status inicial da documentação: 'Pendente'. Requer análise jurídica para homologação de elegibilidade desportiva (RN-ESP-01).`, 'success');
+
+            document.getElementById('enroll-name').value = '';
+            document.getElementById('enroll-ra').value = '';
+            refreshAllUI();
+        });
+    }
+
+    // Handler: Clear Roster
+    const btnClearRoster = document.getElementById('btn-clear-roster');
+    if (btnClearRoster) {
+        btnClearRoster.addEventListener('click', () => {
+            pendingRoster = [];
+            renderRosterBuilder();
+            logSQL('Escalação pendente limpa.', 'success');
+        });
+    }
+
+    // Handler: Save Roster
+    const btnSaveRoster = document.getElementById('btn-save-roster');
+    if (btnSaveRoster) {
+        btnSaveRoster.addEventListener('click', () => {
+            if (!selectedSportsEventId || !selectedSportsModalityId) return;
+            if (pendingRoster.length === 0) {
+                if (!confirm('Deseja salvar a escalação vazia?')) return;
+            }
+            DB_Engine.saveEscalacao(selectedSportsEventId, selectedSportsModalityId, pendingRoster);
+        });
+    }
 
     // RENDER 5: TREASURY (FINANCE MODULE)
     function renderFinanceModule() {
         const financeTbody = document.querySelector('#ledger-table tbody');
-        financeTbody.innerHTML = '';
-        
-        let netInflow = 0;
-        let netOutflow = 0;
-
-        DB.lancamentos_financeiros.forEach(record => {
-            const tr = document.createElement('tr');
+        if (financeTbody) {
+            financeTbody.innerHTML = '';
             
-            if (record.tipo === 'Entrada') netInflow += record.valor;
-            else netOutflow += record.valor;
+            let netInflow = 0;
+            let netOutflow = 0;
 
-            tr.innerHTML = `
-                <td>${record.data_competencia}</td>
-                <td>
-                    <span class="badge ${record.tipo === 'Entrada' ? 'badge-success' : 'badge-danger'}">
-                        ${record.tipo}
-                    </span>
-                </td>
-                <td><b>${record.categoria}</b></td>
-                <td>R$ ${record.valor.toFixed(2)}</td>
-                <td>
-                    <span class="badge ${record.status_conciliacao ? 'badge-success' : 'badge-secondary'}">
-                        ${record.status_conciliacao ? '<i class="fas fa-lock"></i> Conciliado' : '<i class="fas fa-clock"></i> Pendente'}
-                    </span>
-                </td>
-                <td>
-                    <div style="display:flex; gap:6px;">
-                        ${!record.status_conciliacao ? `
-                            <button class="btn btn-secondary btn-reconcile" data-lf-id="${record.id}" style="padding:4px 8px; font-size:11px; background:var(--accent-glow); color:var(--accent);">
-                                Conciliar
+            DB.lancamentos_financeiros.forEach(record => {
+                const tr = document.createElement('tr');
+                
+                if (record.tipo === 'Entrada') netInflow += record.valor;
+                else netOutflow += record.valor;
+
+                tr.innerHTML = `
+                    <td>${record.data_competencia}</td>
+                    <td>
+                        <span class="badge ${record.tipo === 'Entrada' ? 'badge-success' : 'badge-danger'}">
+                            ${record.tipo}
+                        </span>
+                    </td>
+                    <td><b>${record.categoria}</b></td>
+                    <td>R$ ${record.valor.toFixed(2)}</td>
+                    <td>
+                        <span class="badge ${record.status_conciliacao ? 'badge-success' : 'badge-secondary'}">
+                            ${record.status_conciliacao ? '<i class="fas fa-lock"></i> Conciliado' : '<i class="fas fa-clock"></i> Pendente'}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            ${!record.status_conciliacao ? `
+                                <button class="btn btn-secondary btn-reconcile" data-lf-id="${record.id}" style="padding:4px 8px; font-size:11px; background:var(--accent-glow); color:var(--accent);">
+                                    Conciliar
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-secondary btn-delete-lf" data-lf-id="${record.id}" style="padding:4px 8px; font-size:11px;">
+                                Excluir
                             </button>
-                        ` : ''}
-                        <button class="btn btn-secondary btn-delete-lf" data-lf-id="${record.id}" style="padding:4px 8px; font-size:11px;">
-                            Excluir
-                        </button>
-                    </div>
-                </td>
-            `;
-            financeTbody.appendChild(tr);
-        });
+                        </div>
+                    </td>
+                `;
+                financeTbody.appendChild(tr);
+            });
 
-        // Balance Summary Cards update
-        const netTotal = netInflow - netOutflow;
-        document.getElementById('ledger-inflow').innerText = `R$ ${netInflow.toFixed(2)}`;
-        document.getElementById('ledger-outflow').innerText = `R$ ${netOutflow.toFixed(2)}`;
-        document.getElementById('ledger-total').innerText = `R$ ${netTotal.toFixed(2)}`;
-        
-        if (netTotal < 0) {
-            document.getElementById('ledger-total').className = 'badge badge-danger';
-        } else {
-            document.getElementById('ledger-total').className = 'badge badge-success';
+            // Balance Summary Cards update
+            const netTotal = netInflow - netOutflow;
+            document.getElementById('ledger-inflow').innerText = `R$ ${netInflow.toFixed(2)}`;
+            document.getElementById('ledger-outflow').innerText = `R$ ${netOutflow.toFixed(2)}`;
+            document.getElementById('ledger-total').innerText = `R$ ${netTotal.toFixed(2)}`;
+            
+            if (netTotal < 0) {
+                document.getElementById('ledger-total').className = 'badge badge-danger';
+            } else {
+                document.getElementById('ledger-total').className = 'badge badge-success';
+            }
+
+            // Reconcile trigger button click (renders record imutável)
+            document.querySelectorAll('.btn-reconcile').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const lfId = btn.getAttribute('data-lf-id');
+                    DB_Engine.mutateFinanceRecord(lfId, 'update', { status_conciliacao: true });
+                });
+            });
+
+            // Delete record button click (tests RN-FIN-01 lock)
+            document.querySelectorAll('.btn-delete-lf').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const lfId = btn.getAttribute('data-lf-id');
+                    DB_Engine.mutateFinanceRecord(lfId, 'delete');
+                });
+            });
         }
 
-        // Reconcile trigger button click (renders record imutável)
-        document.querySelectorAll('.btn-reconcile').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const lfId = btn.getAttribute('data-lf-id');
-                // UPDATE status_conciliacao = TRUE
-                DB_Engine.mutateFinanceRecord(lfId, 'update', { status_conciliacao: true });
-            });
+        // Render phase 4 event participants section
+        renderEventParticipants();
+    }
+
+    // --- FUNCTION: RENDER EVENT PARTICIPANTS (Fase 4) ---
+    function renderEventParticipants() {
+        const finEvtSelect = document.getElementById('fin-evento-select');
+        const filterSelect = document.getElementById('part-filter-select');
+        if (!finEvtSelect) return;
+
+        // Populate event select with approved Social/Misto events
+        const prevSelectValue = selectedFinanceEventId;
+        finEvtSelect.innerHTML = '<option value="">Selecione um Evento...</option>';
+        
+        const eligibleEvents = DB.eventos.filter(e => e.status_aprovacao === 'Aprovado' && (e.tipo === 'Social' || e.tipo === 'Misto'));
+        eligibleEvents.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.innerText = `${e.nome} (${e.tipo})`;
+            finEvtSelect.appendChild(opt);
         });
 
-        // Delete record button click (tests RN-FIN-01 lock)
-        document.querySelectorAll('.btn-delete-lf').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const lfId = btn.getAttribute('data-lf-id');
-                DB_Engine.mutateFinanceRecord(lfId, 'delete');
+        if (prevSelectValue && eligibleEvents.some(e => e.id === prevSelectValue)) {
+            finEvtSelect.value = prevSelectValue;
+            selectedFinanceEventId = prevSelectValue;
+        } else {
+            finEvtSelect.value = '';
+            selectedFinanceEventId = '';
+        }
+
+        // Setup event listener once
+        if (!finEvtSelect.dataset.listener) {
+            finEvtSelect.addEventListener('change', (e) => {
+                selectedFinanceEventId = e.target.value;
+                const event = DB.eventos.find(evt => evt.id === selectedFinanceEventId);
+                const partValInput = document.getElementById('part-valor');
+                if (event && partValInput) {
+                    partValInput.value = event.valor_taxa_base.toFixed(2);
+                }
+                renderEventParticipants();
             });
+            finEvtSelect.dataset.listener = 'true';
+        }
+
+        if (filterSelect && !filterSelect.dataset.listener) {
+            filterSelect.addEventListener('change', () => {
+                renderEventParticipants();
+            });
+            filterSelect.dataset.listener = 'true';
+        }
+
+        const interfaceDiv = document.getElementById('fin-participants-interface');
+        const placeholderDiv = document.getElementById('fin-participants-no-selection');
+
+        if (!selectedFinanceEventId) {
+            if (interfaceDiv) interfaceDiv.style.display = 'none';
+            if (placeholderDiv) placeholderDiv.style.display = 'block';
+            return;
+        }
+
+        if (interfaceDiv) interfaceDiv.style.display = 'block';
+        if (placeholderDiv) placeholderDiv.style.display = 'none';
+
+        const event = DB.eventos.find(e => e.id === selectedFinanceEventId);
+
+        // Fetch participants for this event
+        const allPart = DB.participantes_evento.filter(p => p.evento_id === selectedFinanceEventId);
+        
+        // Calculate KPIs
+        const totalCount = allPart.length;
+        const totalPaid = allPart.filter(p => p.status_pagamento === 'Pago').reduce((sum, p) => sum + p.valor_cobrado, 0);
+        const totalPending = allPart.filter(p => p.status_pagamento === 'Pendente').reduce((sum, p) => sum + p.valor_cobrado, 0);
+        const netProfit = totalPaid - event.orcamento_previsto;
+
+        document.getElementById('evt-kpi-total-part').innerText = totalCount;
+        document.getElementById('evt-kpi-arrecadado').innerText = `R$ ${totalPaid.toFixed(2)}`;
+        document.getElementById('evt-kpi-a-receber').innerText = `R$ ${totalPending.toFixed(2)}`;
+        
+        const netProfitEl = document.getElementById('evt-kpi-liquido');
+        netProfitEl.innerText = `R$ ${netProfit.toFixed(2)}`;
+        if (netProfit < 0) {
+            netProfitEl.style.color = '#ef4444';
+        } else {
+            netProfitEl.style.color = '#10b981';
+        }
+
+        // Render table
+        const tbody = document.querySelector('#fin-part-table tbody');
+        if (tbody) {
+            tbody.innerHTML = '';
+            
+            const filterVal = filterSelect ? filterSelect.value : 'Todos';
+            const filteredPart = allPart.filter(p => {
+                if (filterVal === 'Todos') return true;
+                return p.status_pagamento === filterVal;
+            });
+
+            if (filteredPart.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">Nenhum participante correspondente a este filtro.</td></tr>';
+            } else {
+                filteredPart.forEach(part => {
+                    const tr = document.createElement('tr');
+                    
+                    let statusBadge = '';
+                    if (part.status_pagamento === 'Pago') {
+                        statusBadge = `<span class="badge badge-success"><i class="fas fa-check-circle"></i> Pago</span>`;
+                    } else if (part.status_pagamento === 'Isento') {
+                        statusBadge = `<span class="badge badge-secondary"><i class="fas fa-gift"></i> Isento</span>`;
+                    } else {
+                        statusBadge = `<span class="badge badge-warning"><i class="fas fa-clock"></i> Pendente</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td>
+                            <b>${part.nome}</b>
+                            ${part.ra_matricula ? `<br><code style="font-size:10px; color:var(--text-secondary);">${part.ra_matricula}</code>` : ''}
+                        </td>
+                        <td>
+                            R$ ${part.valor_cobrado.toFixed(2)}
+                            <button class="btn btn-secondary btn-edit-part-price" data-part-id="${part.id}" style="padding: 2px 4px; font-size: 9px; margin-left: 6px;" title="Editar Valor">
+                                <i class="fas fa-pencil-alt"></i>
+                            </button>
+                            ${part.obs ? `<br><span style="font-size: 10px; color: var(--text-secondary); font-style: italic;">Obs: ${part.obs}</span>` : ''}
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>${part.forma_pagamento || '<span style="color:var(--text-muted);">—</span>'}</td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                ${part.status_pagamento === 'Pendente' ? `
+                                    <button class="btn btn-secondary btn-pay-part" data-part-id="${part.id}" style="padding:4px 8px; font-size:11px; background:var(--success-glow); color:var(--success);">
+                                        Confirmar Pago
+                                    </button>
+                                    <button class="btn btn-secondary btn-exempt-part" data-part-id="${part.id}" style="padding:4px 8px; font-size:11px;">
+                                        Isentar
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-secondary btn-pend-part" data-part-id="${part.id}" style="padding:4px 8px; font-size:11px; background:var(--danger-glow); color:var(--danger);">
+                                        Reverter
+                                    </button>
+                                `}
+                                <button class="btn btn-secondary btn-delete-part" data-part-id="${part.id}" style="padding:4px 8px; font-size:11px; background:rgba(239,68,68,0.1); color:#ef4444;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Attach button listeners
+                tbody.querySelectorAll('.btn-edit-part-price').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-part-id');
+                        const pObj = DB.participantes_evento.find(p => p.id === id);
+                        if (!pObj) return;
+
+                        const newValStr = prompt(`Digite o novo valor cobrado para ${pObj.nome}:`, pObj.valor_cobrado.toFixed(2));
+                        if (newValStr === null) return;
+                        const newVal = parseFloat(newValStr);
+                        if (isNaN(newVal) || newVal < 0) {
+                            alert('Valor inválido!');
+                            return;
+                        }
+                        const newObs = prompt('Motivo da alteração de valor (desconto, cortesia, etc.):', pObj.obs || '');
+                        DB_Engine.updateParticipanteEventoValor(id, newVal, newObs || '');
+                    });
+                });
+
+                tbody.querySelectorAll('.btn-pay-part').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-part-id');
+                        const forma = prompt('Digite a forma de pagamento (Pix, Dinheiro, Cartão):', 'Pix');
+                        if (forma === null) return;
+                        DB_Engine.updateParticipanteEventoStatus(id, 'Pago', forma || 'Pix');
+                    });
+                });
+
+                tbody.querySelectorAll('.btn-exempt-part').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-part-id');
+                        DB_Engine.updateParticipanteEventoStatus(id, 'Isento', 'Isento');
+                    });
+                });
+
+                tbody.querySelectorAll('.btn-pend-part').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-part-id');
+                        if (confirm('Deseja realmente reverter este pagamento para Pendente? Lançamentos automáticos no caixa não serão excluídos para manter a conciliação manual.')) {
+                            DB_Engine.updateParticipanteEventoStatus(id, 'Pendente', '');
+                        }
+                    });
+                });
+
+                tbody.querySelectorAll('.btn-delete-part').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-part-id');
+                        if (confirm('Deseja realmente remover este participante?')) {
+                            DB_Engine.deleteParticipanteEvento(id);
+                        }
+                    });
+                });
+            }
+        }
+    }
+
+    // Event Handler: Register Participant
+    const formAddParticipant = document.getElementById('form-add-participant');
+    if (formAddParticipant) {
+        formAddParticipant.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!selectedFinanceEventId) {
+                alert('Selecione um evento primeiro!');
+                return;
+            }
+            const nome = document.getElementById('part-nome').value;
+            const ra = document.getElementById('part-ra').value;
+            const valor = parseFloat(document.getElementById('part-valor').value) || 0;
+            const status = document.getElementById('part-status').value;
+            const forma = document.getElementById('part-forma').value;
+            const obs = document.getElementById('part-obs').value;
+
+            DB_Engine.insertParticipanteEvento(selectedFinanceEventId, nome, ra, valor, status, forma, obs);
+            
+            // Reset input values
+            document.getElementById('part-nome').value = '';
+            document.getElementById('part-ra').value = '';
+            document.getElementById('part-obs').value = '';
+            
+            // Set value back to default
+            const event = DB.eventos.find(evt => evt.id === selectedFinanceEventId);
+            if (event) {
+                document.getElementById('part-valor').value = event.valor_taxa_base.toFixed(2);
+            }
         });
     }
 
@@ -1581,11 +2499,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const suppliersTbody = document.querySelector('#suppliers-table tbody');
         if (!suppliersTbody) return;
         suppliersTbody.innerHTML = '';
-        DB.fornecedores.forEach(f => {
+
+        const filterSelect = document.getElementById('supplier-filter-select');
+        if (filterSelect && !filterSelect.dataset.listener) {
+            filterSelect.addEventListener('change', () => {
+                renderProductsSupplyModule();
+            });
+            filterSelect.dataset.listener = 'true';
+        }
+
+        const filterVal = filterSelect ? filterSelect.value : 'Todos';
+        const filteredSuppliers = DB.fornecedores.filter(f => {
+            if (filterVal === 'Todos') return true;
+            return f.categoria_servico === filterVal;
+        });
+
+        filteredSuppliers.forEach(f => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${f.nome}</b></td>
                 <td>${f.tipo_produto}</td>
+                <td><span class="badge badge-secondary">${f.categoria_servico || 'Outros'}</span></td>
                 <td>${f.contato ? `${f.contato}` : ''} ${f.telefone ? `<br><code style="font-size:11px;">${f.telefone}</code>` : ''}</td>
             `;
             suppliersTbody.appendChild(tr);
@@ -1664,6 +2598,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('sup-telefone').value,
                 document.getElementById('sup-email').value,
                 document.getElementById('sup-tipo').value,
+                document.getElementById('sup-categoria').value,
                 document.getElementById('sup-obs').value
             );
             if (ok) formCreateSupplier.reset();
@@ -1690,6 +2625,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderExecutiveDashboard();
         renderAccessModule();
         renderEventsModule();
+        renderMarketingModule();
         renderProductsModule();
         renderProductsSupplyModule();
         renderSportsModule();

@@ -353,6 +353,21 @@
                                 <input type="datetime-local" class="form-control" id="evt-data" required>
                             </div>
                         </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Tipo de Evento</label>
+                                <select class="form-control" id="evt-tipo" required>
+                                    <option value="Institucional">Institucional</option>
+                                    <option value="Competição">Competição</option>
+                                    <option value="Social">Social</option>
+                                    <option value="Misto">Misto</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="group-taxa-base" style="display: none;">
+                                <label>Valor da Taxa Base por Participante (R$)</label>
+                                <input type="number" class="form-control" id="evt-taxa-base" placeholder="Ex: 80.00" step="0.01" value="0.00">
+                            </div>
+                        </div>
                         <button type="submit" class="btn btn-accent" style="margin-top:8px;">
                             <i class="fas fa-save"></i> Gravar em Rascunho
                         </button>
@@ -364,53 +379,91 @@
             <!-- SEÇÃO 4: DIRETORIA DE MARKETING -->
             <!-- ========================================================== -->
             <section id="mod-marketing" class="module-section">
-                <div class="products-grid">
-                    <!-- Calendário editorial do marketing -->
-                    <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 4px;"><i class="fas fa-bullhorn"></i> Calendário Editorial de Marketing (RN-EV-01)</h3>
-                        <p style="font-size:11px; color:var(--text-secondary); margin-bottom: 16px;">
-                            Não é permitido fazer agendamentos ou publicações de eventos que não foram aprovados na Tesouraria!
-                        </p>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Evento Associado</label>
-                                <select class="form-control" id="marketing-evt-select">
-                                    <!-- Dinâmico JS -->
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Plataforma</label>
-                                <select class="form-control" id="marketing-platform">
-                                    <option value="Instagram">Instagram</option>
-                                    <option value="WhatsApp">WhatsApp</option>
-                                    <option value="LinkedIn">LinkedIn</option>
-                                    <option value="Outra">Outra</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Data da Publicação</label>
-                                <input type="datetime-local" class="form-control" id="marketing-date">
-                            </div>
-                            <div class="form-group">
-                                <label>Texto do Post</label>
-                                <input type="text" class="form-control" id="marketing-desc" placeholder="Ex: 'Contagem regressiva de vendas...'">
-                            </div>
-                        </div>
-                        <button type="button" class="btn" id="btn-add-marketing" style="margin-top:8px;">
-                            <i class="fas fa-calendar-plus"></i> Agendar Publicação
-                        </button>
+                <!-- Seção de Seleção de Evento Aprovado -->
+                <div class="glass-card" style="margin-bottom: 24px;">
+                    <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-bullhorn"></i> Cronograma de Postagens por Evento</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">
+                        Selecione um evento aprovado pela Tesouraria para gerenciar seu cronograma de postagens e campanhas publicitárias.
+                    </p>
+                    <div class="form-group" style="max-width: 400px; margin-bottom: 0;">
+                        <label>Selecione o Evento Aprovado</label>
+                        <select class="form-control" id="mkt-evento-select">
+                            <!-- Populado dinamicamente via JS com eventos aprovados -->
+                        </select>
                     </div>
+                </div>
 
-                    <!-- Cronograma de Postagens -->
-                    <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-list-ul"></i> Cronograma de Postagens</h3>
-                        <div class="list-group" id="editorial-list" style="max-height: 380px; overflow-y:auto;">
-                            <!-- Dinâmico JS -->
+                <div id="mkt-cronograma-container" style="display: none;">
+                    <div class="products-grid">
+                        <!-- Criar Nova Publicação -->
+                        <div class="glass-card">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-calendar-plus"></i> Agendar Nova Postagem</h3>
+                            <form id="form-create-post">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Plataforma</label>
+                                        <select class="form-control" id="post-plataforma" required>
+                                            <option value="Instagram">Instagram</option>
+                                            <option value="WhatsApp">WhatsApp</option>
+                                            <option value="LinkedIn">LinkedIn</option>
+                                            <option value="TikTok">TikTok</option>
+                                            <option value="Outro">Outro</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Tipo de Conteúdo</label>
+                                        <select class="form-control" id="post-tipo" required>
+                                            <option value="Feed">Feed</option>
+                                            <option value="Stories">Stories</option>
+                                            <option value="Reels">Reels</option>
+                                            <option value="Carrossel">Carrossel</option>
+                                            <option value="Texto">Texto</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Data/Hora de Publicação</label>
+                                        <input type="datetime-local" class="form-control" id="post-data" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Descrição do Conteúdo</label>
+                                        <input type="text" class="form-control" id="post-descricao" placeholder="Ex: Divulgação do 1º lote de ingressos..." required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-accent" style="margin-top:8px;">
+                                    <i class="fas fa-clock"></i> Agendar Postagem
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Postagens Cadastradas -->
+                        <div class="glass-card">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-list-ul"></i> Postagens Agendadas</h3>
+                            <div class="table-container" style="max-height: 380px; overflow-y:auto;">
+                                <table id="mkt-posts-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Canal / Tipo</th>
+                                            <th>Data/Hora</th>
+                                            <th>Descrição</th>
+                                            <th>Status</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Preenchido dinamicamente via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Feedback se nenhum evento selecionado -->
+                <div id="mkt-no-evento-selected" class="glass-card" style="text-align: center; padding: 40px;">
+                    <i class="fas fa-bullhorn" style="font-size: 48px; color: var(--text-secondary); opacity: 0.3; margin-bottom: 16px;"></i>
+                    <p style="color: var(--text-secondary);">Selecione um evento aprovado no topo para gerenciar o cronograma de postagens.</p>
                 </div>
             </section>
 
@@ -510,25 +563,52 @@
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label>Tipo de Produto Fornecido</label>
-                                    <input type="text" class="form-control" id="sup-tipo" placeholder="Ex: Camisetas, Kits, Canecas">
+                                    <input type="text" class="form-control" id="sup-tipo" placeholder="Ex: Camisetas, Kits, Canecas" required>
                                 </div>
                                 <div class="form-group">
-                                    <label>Observações Gerais</label>
-                                    <input type="text" class="form-control" id="sup-obs" placeholder="Ex: Entrega rápida, 15 dias úteis">
+                                    <label>Categoria de Serviço / Produto</label>
+                                    <select class="form-control" id="sup-categoria" required>
+                                        <option value="Vestuário">Vestuário</option>
+                                        <option value="Transporte">Transporte</option>
+                                        <option value="Alimentação">Alimentação</option>
+                                        <option value="Som & Iluminação">Som & Iluminação</option>
+                                        <option value="Brindes">Brindes</option>
+                                        <option value="Gráfica">Gráfica</option>
+                                        <option value="Segurança">Segurança</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
                                 </div>
+                            </div>
+                            <div class="form-group" style="margin-top: 10px; margin-bottom: 12px;">
+                                <label>Observações Gerais</label>
+                                <input type="text" class="form-control" id="sup-obs" placeholder="Ex: Entrega rápida, 15 dias úteis">
                             </div>
                             <button type="submit" class="btn" style="margin-top:8px;">
                                 <i class="fas fa-plus"></i> Salvar Fornecedor no Banco
                             </button>
                         </form>
 
-                        <h4 style="font-family: var(--font-heading); font-size:14px; margin-bottom: 10px; color: var(--accent);">Fornecedores Ativos:</h4>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                            <h4 style="font-family: var(--font-heading); font-size:14px; margin:0; color: var(--accent);">Fornecedores Ativos:</h4>
+                            <select class="form-control" id="supplier-filter-select" style="max-width: 150px; font-size:11px; height:auto; padding:4px 8px;">
+                                <option value="Todos">Todas Categorias</option>
+                                <option value="Vestuário">Vestuário</option>
+                                <option value="Transporte">Transporte</option>
+                                <option value="Alimentação">Alimentação</option>
+                                <option value="Som & Iluminação">Som & Iluminação</option>
+                                <option value="Brindes">Brindes</option>
+                                <option value="Gráfica">Gráfica</option>
+                                <option value="Segurança">Segurança</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
                         <div class="table-container" style="max-height: 200px; overflow-y: auto;">
                             <table id="suppliers-table">
                                 <thead>
                                     <tr>
                                         <th>Nome</th>
-                                        <th>Tipo de Produto</th>
+                                        <th>Tipo / Detalhes</th>
+                                        <th>Categoria</th>
                                         <th>Contato / Tel</th>
                                     </tr>
                                 </thead>
@@ -627,6 +707,7 @@
                                         <th>Modalidade</th>
                                         <th>Documentos</th>
                                         <th>Validação (Jurídico)</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -656,9 +737,39 @@
                                     </select>
                                 </div>
                             </div>
-                            <button type="button" class="btn" id="btn-enroll-athlete" style="margin-top:12px;">
+                            <button type="button" class="btn" id="btn-enroll-athlete" style="margin-top:12px; width: 100%;">
                                 <i class="fas fa-file-upload"></i> Submeter com Documentos Pendentes
                             </button>
+                        </div>
+                        
+                        <hr style="border:0; border-top:1px solid var(--border-glass);">
+                        
+                        <div>
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-plus-circle"></i> Criar Nova Modalidade</h3>
+                            <form id="form-create-modality">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Nome da Modalidade</label>
+                                        <input type="text" class="form-control" id="mod-nome" placeholder="Ex: Futsal Feminino" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Coordenador Geral</label>
+                                        <select class="form-control" id="mod-coordenador" required>
+                                            <!-- Dinâmico JS -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-top: 10px;">
+                                    <label>Categoria da Modalidade</label>
+                                    <select class="form-control" id="mod-categoria" required>
+                                        <option value="Coletivo">Coletivo</option>
+                                        <option value="Individual">Individual</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-accent" style="margin-top:12px; width: 100%;">
+                                    <i class="fas fa-save"></i> Cadastrar Modalidade
+                                </button>
+                            </form>
                         </div>
                         
                         <hr style="border:0; border-top:1px solid var(--border-glass);">
@@ -670,8 +781,10 @@
                                     <thead>
                                         <tr>
                                             <th>Modalidade</th>
-                                            <th>Coordenador Geral</th>
-                                            <th>Atletas Inscritos</th>
+                                            <th>Categoria</th>
+                                            <th>Coordenador</th>
+                                            <th>Atletas</th>
+                                            <th>Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -682,6 +795,84 @@
                         </div>
                     </div>
 
+                </div>
+
+                <!-- Nova seção: Escalação por Evento -->
+                <div class="glass-card" style="margin-top: 24px;">
+                    <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-users-cog"></i> Montar Escalação por Evento</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">
+                        Escolha um evento esportivo aprovado e uma modalidade para gerenciar a lista de atletas escalados.
+                    </p>
+                    
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Evento (Competição Aprovada)</label>
+                            <select class="form-control" id="roster-evento-select">
+                                <!-- Populado com eventos aprovados do tipo Competição -->
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Modalidade Desportiva</label>
+                            <select class="form-control" id="roster-mod-select">
+                                <!-- Populado com modalidades -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="roster-builder-interface" style="display: none;">
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px;">
+                            <!-- Coluna Esquerda: Atletas Disponíveis -->
+                            <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
+                                <h4 style="font-family: var(--font-heading); margin-bottom: 12px; font-size: 15px;"><i class="fas fa-list"></i> Atletas Disponíveis</h4>
+                                <div id="roster-available-athletes" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+                                    <!-- Dinâmico JS -->
+                                </div>
+                            </div>
+                            
+                            <!-- Coluna Direita: Escalação Atual (Pendente) -->
+                            <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
+                                <h4 style="font-family: var(--font-heading); margin-bottom: 12px; font-size: 15px;"><i class="fas fa-clipboard-check"></i> Escalação Montada</h4>
+                                <div id="roster-current-athletes" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+                                    <!-- Dinâmico JS -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="display:flex; justify-content: flex-end; gap:12px;">
+                            <button type="button" class="btn" id="btn-clear-roster" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                Limpar Seleção
+                            </button>
+                            <button type="button" class="btn btn-accent" id="btn-save-roster">
+                                <i class="fas fa-save"></i> Salvar Escalação Oficial
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabela de Escalações Salvas -->
+                    <div id="roster-saved-container" style="margin-top: 24px; display: none;">
+                        <h4 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-history"></i> Escalação Salva do Evento</h4>
+                        <div class="table-container">
+                            <table id="roster-saved-table">
+                                <thead>
+                                    <tr>
+                                        <th>Atleta</th>
+                                        <th>RA / Matrícula</th>
+                                        <th>Modalidade</th>
+                                        <th>Função</th>
+                                        <th>Observação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dinâmico JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="roster-no-selection" class="glass-card" style="text-align: center; padding: 40px; background: rgba(0,0,0,0.1); border: 1px dashed var(--border-glass);">
+                        <i class="fas fa-users-cog" style="font-size: 40px; color: var(--text-secondary); opacity: 0.3; margin-bottom: 12px;"></i>
+                        <p style="color: var(--text-secondary); margin-bottom: 0;">Selecione o Evento e a Modalidade no topo para montar a delegação esportiva.</p>
+                    </div>
                 </div>
             </section>
 
@@ -770,6 +961,137 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Nova seção: Participantes e Taxas por Evento -->
+                <div class="glass-card" style="margin-top: 24px;">
+                    <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-users"></i> Gestão de Participantes por Evento</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">
+                        Gerencie os ingressos, participantes e cobranças de eventos sociais ou mistos aprovados.
+                    </p>
+                    
+                    <div class="form-group" style="max-width: 400px; margin-bottom: 20px;">
+                        <label>Selecione o Evento Social/Misto</label>
+                        <select class="form-control" id="fin-evento-select">
+                            <!-- Populado com eventos aprovados do tipo Social/Misto -->
+                        </select>
+                    </div>
+
+                    <div id="fin-participants-interface" style="display: none;">
+                        <!-- Painel de KPIs do Evento -->
+                        <div class="kpis-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px; gap: 16px;">
+                            <div class="glass-card kpi-card" style="padding: 12px; border-color: rgba(59, 130, 246, 0.2);">
+                                <div class="kpi-icon" style="color:#3b82f6;"><i class="fas fa-users"></i></div>
+                                <div class="kpi-info">
+                                    <p style="font-size:10px;">Total Participantes</p>
+                                    <h4 id="evt-kpi-total-part" style="margin: 0; font-size:16px;">0</h4>
+                                </div>
+                            </div>
+                            <div class="glass-card kpi-card" style="padding: 12px; border-color: rgba(16, 185, 129, 0.2);">
+                                <div class="kpi-icon" style="color:var(--success);"><i class="fas fa-dollar-sign"></i></div>
+                                <div class="kpi-info">
+                                    <p style="font-size:10px;">Arrecadado</p>
+                                    <h4 id="evt-kpi-arrecadado" style="margin: 0; font-size:16px; color:var(--success);">R$ 0,00</h4>
+                                </div>
+                            </div>
+                            <div class="glass-card kpi-card" style="padding: 12px; border-color: rgba(245, 158, 11, 0.2);">
+                                <div class="kpi-icon" style="color:#f59e0b;"><i class="fas fa-hourglass-half"></i></div>
+                                <div class="kpi-info">
+                                    <p style="font-size:10px;">A Receber</p>
+                                    <h4 id="evt-kpi-a-receber" style="margin: 0; font-size:16px; color:#f59e0b;">R$ 0,00</h4>
+                                </div>
+                            </div>
+                            <div class="glass-card kpi-card" style="padding: 12px; border-color: rgba(139, 92, 246, 0.2);">
+                                <div class="kpi-icon" style="color:#8b5cf6;"><i class="fas fa-balance-scale"></i></div>
+                                <div class="kpi-info">
+                                    <p style="font-size:10px;">Resultado Líquido</p>
+                                    <h4 id="evt-kpi-liquido" style="margin: 0; font-size:16px; color:#8b5cf6;">R$ 0,00</h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="products-grid" style="grid-template-columns: 1fr 2fr; gap: 24px;">
+                            <!-- Form para adicionar participante -->
+                            <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
+                                <h4 style="font-family: var(--font-heading); margin-bottom: 12px; font-size:14px;"><i class="fas fa-user-plus"></i> Registrar Participante</h4>
+                                <form id="form-add-participant">
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label>Nome Completo</label>
+                                        <input type="text" class="form-control" id="part-nome" placeholder="Ex: Lucas Ramos" required>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label>Matrícula / RA (Opcional)</label>
+                                        <input type="text" class="form-control" id="part-ra" placeholder="Ex: 22.01948-2">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label>Valor Cobrado (R$)</label>
+                                        <input type="number" class="form-control" id="part-valor" placeholder="Valor do Ingresso" step="0.01" required>
+                                    </div>
+                                    <div class="form-grid" style="gap: 8px;">
+                                        <div class="form-group" style="margin-bottom:12px;">
+                                            <label>Status Pagamento</label>
+                                            <select class="form-control" id="part-status" required>
+                                                <option value="Pendente">Pendente</option>
+                                                <option value="Pago">Pago</option>
+                                                <option value="Isento">Isento</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:12px;">
+                                            <label>Forma de Pagamento</label>
+                                            <select class="form-control" id="part-forma">
+                                                <option value="Pix">Pix</option>
+                                                <option value="Dinheiro">Dinheiro</option>
+                                                <option value="Cartão">Cartão</option>
+                                                <option value="Isento">Isento / Cortesia</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label>Observação (Ex: desconto, motivo cortesia)</label>
+                                        <input type="text" class="form-control" id="part-obs" placeholder="Ex: Lote promocional">
+                                    </div>
+                                    <button type="submit" class="btn btn-accent" style="width:100%; margin-top:8px;">
+                                        <i class="fas fa-plus"></i> Adicionar Participante
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Tabela de participantes -->
+                            <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                                    <h4 style="font-family: var(--font-heading); font-size:14px; margin:0;"><i class="fas fa-list"></i> Lista de Participantes</h4>
+                                    <!-- Filtro rápido -->
+                                    <select class="form-control" id="part-filter-select" style="max-width: 150px; font-size:11px; height:auto; padding:4px 8px;">
+                                        <option value="Todos">Todos</option>
+                                        <option value="Pago">Apenas Pagos</option>
+                                        <option value="Pendente">Apenas Pendentes</option>
+                                        <option value="Isento">Apenas Isentos</option>
+                                    </select>
+                                </div>
+                                <div class="table-container" style="max-height: 380px; overflow-y:auto;">
+                                    <table id="fin-part-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Nome / RA</th>
+                                                <th>Valor Cobrado</th>
+                                                <th>Status</th>
+                                                <th>Forma</th>
+                                                <th>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Dinâmico JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="fin-participants-no-selection" class="glass-card" style="text-align: center; padding: 40px; background: rgba(0,0,0,0.1); border: 1px dashed var(--border-glass);">
+                        <i class="fas fa-users" style="font-size: 40px; color: var(--text-secondary); opacity: 0.3; margin-bottom: 12px;"></i>
+                        <p style="color: var(--text-secondary); margin-bottom: 0;">Selecione um evento social ou misto no topo para gerenciar os participantes.</p>
                     </div>
                 </div>
             </section>

@@ -52,6 +52,8 @@ CREATE TABLE eventos (
     local VARCHAR(255) NOT NULL,
     orcamento_previsto DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     status_aprovacao status_evento NOT NULL DEFAULT 'Rascunho',
+    tipo VARCHAR(100) NOT NULL DEFAULT 'Institucional',
+    valor_taxa_base DECIMAL(12, 2) DEFAULT 0.00,
     criador_id UUID NOT NULL REFERENCES usuarios(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -168,6 +170,7 @@ CREATE TABLE fornecedores (
     telefone VARCHAR(50),
     email VARCHAR(255),
     tipo_produto VARCHAR(255),
+    categoria_servico VARCHAR(255), -- Vestuário, Transporte, Alimentação, Som & Iluminação, etc.
     observacoes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -182,5 +185,43 @@ CREATE TABLE pedidos_compra (
     status VARCHAR(50) NOT NULL DEFAULT 'Pendente', -- Pendente, Recebido, Cancelado
     data_pedido TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     data_previsao TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 15. Cronograma de Postagens de Marketing (Fase 4)
+CREATE TABLE cronograma_postagens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    evento_id UUID NOT NULL REFERENCES eventos(id) ON DELETE CASCADE,
+    plataforma VARCHAR(50) NOT NULL, -- Instagram, WhatsApp, LinkedIn, TikTok, Outro
+    tipo_conteudo VARCHAR(50) NOT NULL, -- Stories, Feed, Reels, Carrossel, Texto
+    data_publicacao TIMESTAMP WITH TIME ZONE NOT NULL,
+    descricao TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Agendado', -- Agendado, Publicado, Cancelado
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 16. Escalações de Atletas por Evento e Modalidade (Fase 4)
+CREATE TABLE escalacoes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    evento_id UUID NOT NULL REFERENCES eventos(id) ON DELETE CASCADE,
+    modalidade_id UUID NOT NULL REFERENCES modalidades(id) ON DELETE CASCADE,
+    atleta_id UUID NOT NULL REFERENCES atletas(id) ON DELETE CASCADE,
+    funcao VARCHAR(100) NOT NULL DEFAULT 'Titular', -- Titular, Reserva, Capitão, Staff Técnico
+    observacao TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_evento_modalidade_atleta UNIQUE (evento_id, modalidade_id, atleta_id)
+);
+
+-- 17. Participantes de Eventos Sociais/Mistos (Fase 4)
+CREATE TABLE participantes_evento (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    evento_id UUID NOT NULL REFERENCES eventos(id) ON DELETE CASCADE,
+    nome VARCHAR(255) NOT NULL,
+    ra_matricula VARCHAR(50),
+    valor_cobrado DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    status_pagamento VARCHAR(50) NOT NULL DEFAULT 'Pendente', -- Pago, Pendente, Isento
+    forma_pagamento VARCHAR(50), -- Pix, Dinheiro, Cartão, Isento
+    data_pagamento DATE,
+    obs TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

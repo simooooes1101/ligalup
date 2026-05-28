@@ -147,9 +147,9 @@ async function runSeed() {
     if (parseInt(supplierCount.rows[0].count) === 0) {
       console.log('🏭 Seed: Inserindo fornecedores oficiais...');
       const insertSupplierQuery = `
-        INSERT INTO fornecedores (nome, contato_nome, telefone, email, tipo_produto, observacoes) VALUES
-        ('Confecções Estrela do Sul', 'Roberto Santos', '(11) 98765-4321', 'comercial@estreladosul.com.br', 'Camisetas e Moletons', 'Fornecedor principal de moletons de algodão premium.'),
-        ('Brindes e Copos Litoral', 'Cláudia Lima', '(13) 99122-3344', 'vendas@brindeslitoral.com.br', 'Canecas e Chopeiras', 'Fornecedor parceiro de canecas de alumínio com tirantes.')
+        INSERT INTO fornecedores (nome, contato_nome, telefone, email, tipo_produto, categoria_servico, observacoes) VALUES
+        ('Confecções Estrela do Sul', 'Roberto Santos', '(11) 98765-4321', 'comercial@estreladosul.com.br', 'Camisetas e Moletons', 'Vestuário', 'Fornecedor principal de moletons de algodão premium.'),
+        ('Brindes e Copos Litoral', 'Cláudia Lima', '(13) 99122-3344', 'vendas@brindeslitoral.com.br', 'Canecas e Chopeiras', 'Som & Iluminação', 'Fornecedor parceiro de canecas de alumínio com tirantes.')
         RETURNING id;
       `;
       const insertedSuppliers = await db.query(insertSupplierQuery);
