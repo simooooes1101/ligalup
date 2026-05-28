@@ -78,8 +78,41 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
     };
 
-    // Usuário Logado Inicial na Simulação (Master - Presidente)
-    let currentUser = DB.usuarios[0];
+    // Usuário logado — preenchido após autenticação
+    let currentUser = null;
+
+    // URL base do backend (tenta localhost em dev)
+    const API_BASE = 'http://localhost:5000';
+    let backendOnline = false;
+
+    // -----------------------------------------------------------------------
+    // MAPEAMENTO DE PERMISSÕES DE ESCRITA POR MÓDULO
+    // -----------------------------------------------------------------------
+    // Chave = data-target do módulo. Valor = array de diretorias com escrita.
+    // Master sempre tem escrita plena.
+    const WRITE_PERMISSIONS = {
+        'mod-dashboard':  ['Presidência', 'Vice-Presidência'],
+        'mod-acessos':    ['Presidência', 'Vice-Presidência'],  // só Master (verificado via cargo)
+        'mod-eventos':    ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Marketing', 'Esportes'],
+        'mod-marketing':  ['Presidência', 'Vice-Presidência', 'Marketing'],
+        'mod-produtos':   ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Produtos'],
+        'mod-esportes':   ['Presidência', 'Vice-Presidência', 'Esportes', 'Jurídico'],
+        'mod-financeiro': ['Presidência', 'Vice-Presidência', 'Tesouraria'],
+        'mod-legal':      ['Presidência', 'Vice-Presidência', 'Jurídico', 'Relações Externas'],
+    };
+
+    function canWrite(moduleId) {
+        if (!currentUser) return false;
+        if (currentUser.cargo === 'Master') return true;
+        const allowed = WRITE_PERMISSIONS[moduleId] || [];
+        return allowed.includes(currentUser.diretoria);
+    }
+
+    function canViewFinance() {
+        if (!currentUser) return false;
+        if (currentUser.cargo === 'Master') return true;
+        return currentUser.diretoria === 'Tesouraria' || currentUser.diretoria === 'Presidência' || currentUser.diretoria === 'Vice-Presidência';
+    }
 
     // ------------------------------------------------------------------------
     // 2. SISTEMA DE SIMULAÇÃO DE BANCO DE DADOS POSTGRESQL (TRIGGER ENGINE)
@@ -451,7 +484,209 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ------------------------------------------------------------------------
-    // 3. LOGICA DA INTERFACE DE USUÁRIO (DOM MANIPULATION)
+    // 3. AUTENTICAÇÃO REAL DE PRODUÇÃO (Login / JWT / Simulador)
+    // ------------------------------------------------------------------------
+
+    // --- Verifica se o backend está online ---
+    async function checkBackend() {
+        const badge = document.getElementById('login-status-badge');
+        const connBadge = document.getElementById('connection-status-badge');
+        try {
+            const resp = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(2500) });
+            backendOnline = resp.ok;
+        } catch {
+            backendOnline = false;
+        }
+
+        if (backendOnline) {
+            badge.className = 'login-status-badge online';
+            badge.innerHTML = '<i class="fas fa-circle"></i> Supabase Conectado';
+            if (connBadge) {
+                connBadge.className = 'badge';
+                connBadge.style.cssText = 'padding:8px 12px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
+                connBadge.innerHTML = '<i class="fas fa-database"></i> Banco Supabase Ativo';
+            }
+        } else {
+            badge.className = 'login-status-badge offline';
+            badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Banco Local (Simulado)';
+            if (connBadge) {
+                connBadge.className = 'badge badge-secondary';
+                connBadge.style.cssText = 'padding:8px 12px;';
+                connBadge.innerHTML = '<i class="fas fa-flask"></i> Ambiente Simulado';
+            }
+        }
+    }
+
+    // --- Autenticação local (fallback sem backend) ---
+    function localAuth(email, password) {
+        const DEFAULT_PASSWORD = 'lup123_strategy';
+        const user = DB.usuarios.find(u => u.email === email && u.status);
+        if (!user) return null;
+        if (password !== DEFAULT_PASSWORD) return null;
+        return user;
+    }
+
+    // --- Popula a sidebar após login ---
+    function populateSidebar(user) {
+        document.getElementById('sidebar-user-name').textContent = user.nome;
+        document.getElementById('sidebar-user-role').textContent = user.cargo;
+        document.getElementById('sidebar-user-dept').textContent =
+            user.diretoria !== 'Nenhuma' ? `Dir. de ${user.diretoria}` : 'Geral';
+    }
+
+    // --- Aplica visibilidade do menu financeiro ---
+    function applyNavPermissions() {
+        const financeItem = document.querySelector('.nav-item-finance');
+        if (financeItem) {
+            financeItem.style.display = canViewFinance() ? '' : 'none';
+        }
+        // Oculta Gestão de Acessos para não-Master
+        document.querySelectorAll('[data-requires-master]').forEach(item => {
+            item.style.display = (currentUser && currentUser.cargo === 'Master') ? '' : 'none';
+        });
+    }
+
+    // --- Aplica modo somente leitura aos módulos ---
+    function applyReadonlyMode() {
+        document.querySelectorAll('.module-section').forEach(section => {
+            const moduleId = section.id;
+            const canEdit = canWrite(moduleId);
+            const existingBanner = section.querySelector('.readonly-module-banner');
+
+            if (!canEdit) {
+                section.classList.add('module-readonly');
+                if (!existingBanner) {
+                    const banner = document.createElement('div');
+                    banner.className = 'readonly-module-banner';
+                    banner.innerHTML = `<i class="fas fa-eye"></i> <span><strong>Modo Somente Leitura</strong> — sua diretoria pode visualizar este módulo, mas apenas a diretoria responsável pode criar ou editar dados aqui.</span>`;
+                    section.insertBefore(banner, section.firstChild);
+                }
+            } else {
+                section.classList.remove('module-readonly');
+                if (existingBanner) existingBanner.remove();
+            }
+        });
+    }
+
+    // --- Abre o painel após autenticação ---
+    function openApp(user) {
+        currentUser = user;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-wrapper').style.display = '';
+        populateSidebar(user);
+        applyNavPermissions();
+        applyReadonlyMode();
+        logSQL(`LOGIN: Usuário '${user.nome}' autenticado. cargo=${user.cargo}, diretoria=${user.diretoria}`, 'trigger');
+        refreshAllUI();
+
+        // Se financeiro está oculto e está ativo, muda para dashboard
+        if (!canViewFinance()) {
+            const activeItem = document.querySelector('.nav-item.active');
+            if (activeItem && activeItem.getAttribute('data-target') === 'mod-financeiro') {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                document.querySelectorAll('.module-section').forEach(s => s.classList.remove('active'));
+                document.querySelector('[data-target="mod-dashboard"]').classList.add('active');
+                document.getElementById('mod-dashboard').classList.add('active');
+            }
+        }
+    }
+
+    // --- Handler do formulário de login ---
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email    = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        const errEl    = document.getElementById('login-error');
+        const btnText  = document.getElementById('btn-login-text');
+        const btnLoad  = document.getElementById('btn-login-loading');
+        const btn      = document.getElementById('btn-login');
+
+        errEl.style.display = 'none';
+        btnText.style.display = 'none';
+        btnLoad.style.display = '';
+        btn.disabled = true;
+
+        let user = null;
+
+        if (backendOnline) {
+            try {
+                const resp = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await resp.json();
+                if (resp.ok && data.status === 'success') {
+                    localStorage.setItem('lup_token', data.token);
+                    localStorage.setItem('lup_user', JSON.stringify(data.user));
+                    user = data.user;
+                } else {
+                    throw new Error(data.error || 'Credenciais inválidas.');
+                }
+            } catch (err) {
+                // Tenta fallback local se o backend retornar erro de rede
+                user = localAuth(email, password);
+                if (!user) {
+                    errEl.textContent = err.message || 'E-mail ou senha inválidos.';
+                    errEl.style.display = 'block';
+                }
+            }
+        } else {
+            user = localAuth(email, password);
+            if (!user) {
+                errEl.textContent = 'E-mail ou senha inválidos. Verifique suas credenciais.';
+                errEl.style.display = 'block';
+            }
+        }
+
+        btnText.style.display = '';
+        btnLoad.style.display = 'none';
+        btn.disabled = false;
+
+        if (user) openApp(user);
+    });
+
+    // --- Toggle show/hide senha ---
+    document.getElementById('btn-toggle-password').addEventListener('click', () => {
+        const pwInput = document.getElementById('login-password');
+        const icon    = document.getElementById('pw-eye-icon');
+        if (pwInput.type === 'password') {
+            pwInput.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            pwInput.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    });
+
+    // --- Logout ---
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        localStorage.removeItem('lup_token');
+        localStorage.removeItem('lup_user');
+        currentUser = null;
+        document.getElementById('app-wrapper').style.display = 'none';
+        document.getElementById('login-screen').style.display = '';
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
+        logSQL('LOGOUT: Sessão encerrada pelo usuário.', 'trigger');
+    });
+
+    // --- Inicializa verificação de backend e tenta re-login por token salvo ---
+    (async () => {
+        await checkBackend();
+        // Se token válido no localStorage, tenta restaurar sessão
+        try {
+            const savedUser = JSON.parse(localStorage.getItem('lup_user'));
+            const savedToken = localStorage.getItem('lup_token');
+            if (savedUser && savedToken) {
+                openApp(savedUser);
+                return;
+            }
+        } catch { /* ignorar */ }
+    })();
+
+    // ------------------------------------------------------------------------
+    // 4. LOGICA DA INTERFACE DE USUÁRIO (DOM MANIPULATION)
     // ------------------------------------------------------------------------
 
     // Tab Navigation Switcher
@@ -461,10 +696,10 @@ document.addEventListener('DOMContentLoaded', () => {
     navItems.forEach(item => {
         item.addEventListener('click', () => {
             const targetSection = item.getAttribute('data-target');
-            
+
             navItems.forEach(n => n.classList.remove('active'));
             sections.forEach(s => s.classList.remove('active'));
-            
+
             item.classList.add('active');
             document.getElementById(targetSection).classList.add('active');
             logSQL(`Navegação: Acessou módulo '${item.innerText.trim()}'`, 'query');
@@ -474,20 +709,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Close Error Overlay Modal
     document.getElementById('btn-close-error').addEventListener('click', () => {
         document.getElementById('error-overlay').classList.remove('active');
-    });
-
-    // User Selection (RBAC Toggle)
-    const rbacSelect = document.getElementById('user-rbac-select');
-    rbacSelect.addEventListener('change', (e) => {
-        const userId = e.target.value;
-        currentUser = DB.usuarios.find(u => u.id === userId);
-        
-        // Update user badge in sidebar
-        document.getElementById('logged-user-role').innerText = currentUser.cargo;
-        document.getElementById('logged-user-dept').innerText = currentUser.diretoria !== 'Nenhuma' ? `Diretoria de ${currentUser.diretoria}` : 'Geral';
-        
-        logSQL(`RBAC Switch: Sessão de banco alterada. app.current_user_id = '${currentUser.id}' (${currentUser.nome})`, 'trigger');
-        refreshAllUI();
     });
 
     // RENDER 1: EXECUTIVE DASHBOARD
@@ -1383,10 +1604,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLegalModule();
     }
 
-    // Startup system
+    // Startup system logs (executados uma vez no carregamento)
     logSQL('SGBD Iniciado. PostgreSQL v16.1 (Debian) em x86_64-pc-linux-gnu.', 'success');
     logSQL('Executando scripts do schema.sql...', 'success');
     logSQL('Compilando triggers.sql: 7 Regras de Negócio rigidamente asseguradas na camada de dados.', 'success');
-    
-    refreshAllUI();
 });
+

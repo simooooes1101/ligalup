@@ -86,6 +86,13 @@ async function enviarNotificacaoEmail(userId, gatilho, destinatario, titulo, con
 }
 
 // ----------------------------------------------------------------------------
+// 0. HEALTH CHECK (Ping de disponibilidade do servidor)
+// ----------------------------------------------------------------------------
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ----------------------------------------------------------------------------
 // 1. ENDPOINTS DE AUTENTICAÇÃO
 // ----------------------------------------------------------------------------
 

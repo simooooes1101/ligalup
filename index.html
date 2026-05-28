@@ -4,14 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Atlética LUP — Plataforma de Gestão Estratégica</title>
-    <!-- Goolge Fonts -->
+    <meta name="description" content="SaaS de gestão estratégica interna da Atlética LUP — Liga Unificada Pitágoras.">
+    <!-- Google Fonts -->
     <link rel="stylesheet" href="style.css">
     <!-- FontAwesome para ícones premium -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <div class="app-wrapper">
+    <!-- ================================================================== -->
+    <!-- TELA DE LOGIN (Produção) -->
+    <!-- ================================================================== -->
+    <div id="login-screen">
+        <div class="login-backdrop"></div>
+        <div class="login-card">
+            <div class="login-logo">
+                <img src="assets/logo.png" alt="Logo LUP">
+            </div>
+            <h1 class="login-title">Atlética LUP</h1>
+            <p class="login-subtitle">Plataforma de Gestão Estratégica</p>
+
+            <div id="login-status-badge" class="login-status-badge checking">
+                <i class="fas fa-circle-notch fa-spin"></i> Verificando conexão...
+            </div>
+
+            <form id="login-form" class="login-form" novalidate>
+                <div class="login-form-group">
+                    <label for="login-email"><i class="fas fa-envelope"></i> E-mail Institucional</label>
+                    <input type="email" id="login-email" class="login-input" placeholder="presidencia@atleticalup.com.br" required autocomplete="email">
+                </div>
+                <div class="login-form-group">
+                    <label for="login-password"><i class="fas fa-lock"></i> Senha</label>
+                    <div class="login-password-wrapper">
+                        <input type="password" id="login-password" class="login-input" placeholder="••••••••••••" required autocomplete="current-password">
+                        <button type="button" id="btn-toggle-password" class="login-toggle-pw" title="Mostrar/ocultar senha">
+                            <i class="fas fa-eye" id="pw-eye-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="login-error" class="login-error" style="display:none;"></div>
+                <button type="submit" id="btn-login" class="login-btn">
+                    <span id="btn-login-text"><i class="fas fa-sign-in-alt"></i> Acessar Painel</span>
+                    <span id="btn-login-loading" style="display:none;"><i class="fas fa-circle-notch fa-spin"></i> Autenticando...</span>
+                </button>
+            </form>
+            <p class="login-footer-note">Acesso exclusivo para membros da Diretoria LUP</p>
+        </div>
+    </div>
+
+    <div class="app-wrapper" id="app-wrapper" style="display:none;">
         
         <!-- SIDEBAR DE NAVEGAÇÃO -->
         <aside>
@@ -24,11 +65,11 @@
                     </div>
                 </div>
                 
-                <ul class="nav-links">
+                <ul class="nav-links" id="nav-links">
                     <li class="nav-item active" data-target="mod-dashboard">
                         <i class="fas fa-chart-line"></i> Dashboard Executivo
                     </li>
-                    <li class="nav-item" data-target="mod-acessos">
+                    <li class="nav-item" data-target="mod-acessos" data-requires-master="true">
                         <i class="fas fa-users-cog"></i> Gestão de Acessos
                     </li>
                     <li class="nav-item" data-target="mod-eventos">
@@ -38,39 +79,35 @@
                         <i class="fas fa-bullhorn"></i> Diretoria de Marketing
                     </li>
                     <li class="nav-item" data-target="mod-produtos">
-                        <i class="fas fa-tshirt"></i> Produtos & Estoque
+                        <i class="fas fa-tshirt"></i> Produtos &amp; Estoque
                     </li>
                     <li class="nav-item" data-target="mod-esportes">
-                        <i class="fas fa-running"></i> Esportes & Atletas
+                        <i class="fas fa-running"></i> Esportes &amp; Atletas
                     </li>
-                    <li class="nav-item" data-target="mod-financeiro">
-                        <i class="fas fa-wallet"></i> Tesouraria & Caixa
+                    <li class="nav-item nav-item-finance" data-target="mod-financeiro">
+                        <i class="fas fa-wallet"></i> Tesouraria &amp; Caixa
                     </li>
                     <li class="nav-item" data-target="mod-legal">
-                        <i class="fas fa-file-contract"></i> Jurídico & GED
+                        <i class="fas fa-file-contract"></i> Jurídico &amp; GED
                     </li>
                 </ul>
             </div>
             
-            <!-- SIMULADOR DE USUÁRIO (RBAC ROLE SWITCHER) -->
-            <div class="sim-container">
-                <div class="sim-title">
-                    <span>Sessão de Usuário</span>
-                    <i class="fas fa-shield-alt"></i>
+            <!-- PERFIL DO USUÁRIO LOGADO + LOGOUT -->
+            <div class="user-profile-sidebar">
+                <div class="user-profile-info">
+                    <div class="user-avatar-sidebar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-details-sidebar">
+                        <div id="sidebar-user-name" class="sidebar-user-name">—</div>
+                        <div id="sidebar-user-role" class="sidebar-user-role">—</div>
+                        <div id="sidebar-user-dept" class="sidebar-user-dept">—</div>
+                    </div>
                 </div>
-                <select class="sim-select" id="user-rbac-select">
-                    <option value="u1">Presidente (Master / Presidência)</option>
-                    <option value="u2">Tesoureiro (Diretor / Tesouraria)</option>
-                    <option value="u3">Marketing (Diretor / Marketing)</option>
-                    <option value="u4">Esportes (Diretor / Esportes)</option>
-                    <option value="u5">Jurídico (Diretor / Jurídico)</option>
-                    <option value="u6">Amanda (Apoio / Geral)</option>
-                </select>
-                
-                <div class="user-badge-details">
-                    <div id="logged-user-role" class="user-badge-role">Master</div>
-                    <div id="logged-user-dept" class="user-badge-dept">Diretoria de Presidência</div>
-                </div>
+                <button id="btn-logout" class="btn-logout" title="Sair do sistema">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
             </div>
         </aside>
 
@@ -85,8 +122,8 @@
                 </div>
                 
                 <div class="header-actions">
-                    <span class="badge badge-secondary" style="padding: 8px 12px;">
-                        <i class="fas fa-clock"></i> Ambiente Sandbox
+                    <span id="connection-status-badge" class="badge badge-secondary" style="padding: 8px 12px;">
+                        <i class="fas fa-circle-notch fa-spin"></i> Verificando...
                     </span>
                     <div class="notification-bell">
                         <i class="fas fa-bell"></i>
