@@ -5,16 +5,16 @@
    ============================================================================ */
 
 :root {
-    /* Palette HSL Tailored */
-    --bg-primary: #080c14;
-    --bg-secondary: #111827;
-    --bg-glass: rgba(17, 24, 39, 0.7);
+    /* Palette HSL Tailored for LUP (Orange & Red Fire Theme) */
+    --bg-primary: #0b0705; /* Deep warm charcoal/black */
+    --bg-secondary: #160f0d; /* Warm dark slate */
+    --bg-glass: rgba(22, 15, 13, 0.75);
     --border-glass: rgba(255, 255, 255, 0.07);
     
-    --primary: #3b82f6; /* Azul Atlética */
-    --primary-glow: rgba(59, 130, 246, 0.35);
-    --accent: #f59e0b; /* Ouro/Amarelo Atlética */
-    --accent-glow: rgba(245, 158, 11, 0.3);
+    --primary: #ea580c; /* Laranja Fogo LUP */
+    --primary-glow: rgba(234, 88, 12, 0.35);
+    --accent: #dc2626; /* Vermelho Chama LUP */
+    --accent-glow: rgba(220, 38, 38, 0.3);
     
     --success: #10b981;
     --success-glow: rgba(16, 185, 129, 0.2);
@@ -48,9 +48,9 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     background-image: 
-        radial-gradient(at 10% 20%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
-        radial-gradient(at 90% 10%, rgba(245, 158, 11, 0.05) 0px, transparent 50%),
-        radial-gradient(at 50% 80%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+        radial-gradient(at 10% 20%, rgba(234, 88, 12, 0.08) 0px, transparent 50%),
+        radial-gradient(at 90% 10%, rgba(220, 38, 38, 0.06) 0px, transparent 50%),
+        radial-gradient(at 50% 80%, rgba(234, 88, 12, 0.04) 0px, transparent 50%);
     background-attachment: fixed;
 }
 
@@ -502,7 +502,7 @@ tr:hover td {
 }
 
 .badge-success { background: var(--success-glow); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.4); }
-.badge-warning { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); }
+.badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.35); }
 .badge-danger { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.4); }
 .badge-secondary { background: rgba(255,255,255,0.05); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.1); }
 
