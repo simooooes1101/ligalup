@@ -859,23 +859,24 @@
 
     </div>
 
-    <!-- DIÁLOGO DE ERRO DO BANCO DE DADOS (TRIGGER OVERLAY) -->
+    <!-- DIÁLOGO DE AVISO AO USUÁRIO (Amigável) -->
     <div class="trigger-error-overlay" id="error-overlay">
-        <div class="error-modal">
-            <div class="error-modal-header">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>POSTGRESQL EXCEPTION: TRANSACTION ROLLBACK</span>
+        <div class="error-modal error-modal-friendly">
+            <div class="error-modal-icon-wrap">
+                <div class="error-modal-icon">
+                    <i class="fas fa-shield-alt" id="error-modal-icon"></i>
+                </div>
             </div>
             <div class="error-modal-body">
-                <div class="db-error-code" id="error-code">
-                    PostgreSQL State: 45000 | Constraint: chk_estoque_positivo
-                </div>
-                <div class="error-message-text" id="error-message">
-                    Transação abortada devido a uma violação de regra de negócio imutável do sistema. Todos os dados inseridos nesta query foram revertidos (ROLLBACK).
-                </div>
+                <h3 class="error-modal-title" id="error-title">Ação não permitida</h3>
+                <p class="error-modal-desc" id="error-message">
+                    Você não tem permissão para realizar esta ação.
+                </p>
             </div>
             <div class="error-modal-footer">
-                <button class="btn btn-accent" id="btn-close-error">OK (Reverter Operação)</button>
+                <button class="btn btn-accent error-btn-ok" id="btn-close-error">
+                    <i class="fas fa-check"></i> Entendi
+                </button>
             </div>
         </div>
     </div>

@@ -129,11 +129,104 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Mapeamento de erros técnicos → mensagens amigáveis para o usuário final
+    const ERROR_FRIENDLY_MAP = [
+        {
+            match: ['42501', 'Permission Denied'],
+            icon: 'fas fa-lock',
+            title: 'Acesso não autorizado',
+            msg: 'Você não tem permissão para realizar esta ação. Se precisar, entre em contato com a Presidência para solicitar o acesso.'
+        },
+        {
+            match: ['Unique Violation', '23505'],
+            icon: 'fas fa-clone',
+            title: 'Registro duplicado',
+            msg: 'Já existe um cadastro com esses dados no sistema. Por favor, verifique as informações e tente novamente.'
+        },
+        {
+            match: ['Not Null', '23502'],
+            icon: 'fas fa-exclamation-circle',
+            title: 'Campos obrigatórios',
+            msg: 'Preencha todos os campos obrigatórios antes de salvar.'
+        },
+        {
+            match: ['chk_estoque', 'Estoque', 'CHECK Constraint'],
+            icon: 'fas fa-box',
+            title: 'Estoque insuficiente',
+            msg: 'Não é possível realizar esta operação pois o estoque ficaria negativo. Verifique a quantidade disponível e tente novamente.'
+        },
+        {
+            match: ['RN-LOG-01', 'Audit', 'Append-Only'],
+            icon: 'fas fa-shield-alt',
+            title: 'Registro protegido',
+            msg: 'Este histórico de auditoria é protegido e não pode ser alterado ou excluído. Isso garante a integridade das informações da diretoria.'
+        },
+        {
+            match: ['RN-FIN-01', 'Caixa', 'Imutável'],
+            icon: 'fas fa-wallet',
+            title: 'Lançamento bloqueado',
+            msg: 'Este lançamento financeiro já foi conciliado e não pode ser modificado. Para correções, registre um novo lançamento de ajuste.'
+        },
+        {
+            match: ['RN-EV-01', 'Aprovação', 'Fluxo'],
+            icon: 'fas fa-calendar-times',
+            title: 'Aprovação não permitida',
+            msg: 'Apenas a Tesouraria ou a Presidência pode aprovar o orçamento deste evento. Solicite a aprovação ao responsável.'
+        },
+        {
+            match: ['Calendário', 'Editorial'],
+            icon: 'fas fa-calendar-exclamation',
+            title: 'Conflito de datas',
+            msg: 'Já existe outro evento agendado neste período. Escolha uma data diferente e tente novamente.'
+        },
+        {
+            match: ['RN-JUR-01', 'Parceria', 'Validação'],
+            icon: 'fas fa-file-contract',
+            title: 'Documento inválido',
+            msg: 'Esta parceria não pode ser ativada sem um contrato anexado e aprovado. Faça o upload do documento e tente novamente.'
+        },
+        {
+            match: ['RN-ESP-01', 'Elegibilidade'],
+            icon: 'fas fa-user-times',
+            title: 'Atleta inelegível',
+            msg: 'Este atleta não atende aos requisitos para participar da modalidade selecionada. Verifique as condições de elegibilidade.'
+        },
+        {
+            match: ['trg_receber_pedido', 'Recebido'],
+            icon: 'fas fa-box-check',
+            title: 'Pedido já recebido',
+            msg: 'Este pedido de compra já foi marcado como recebido e não pode ser processado novamente.'
+        },
+    ];
+
     function showDBErrorDialog(errCode, constraintName, description) {
-        const overlay = document.getElementById('error-overlay');
-        document.getElementById('error-code').innerText = `PostgreSQL State: ${errCode} | Constraint: ${constraintName}`;
-        document.getElementById('error-message').innerText = description;
-        overlay.classList.add('active');
+        // Registra o erro técnico silenciosamente no console (apenas para devs)
+        console.debug(`[DB_ENGINE] ${errCode} | ${constraintName} | ${description}`);
+
+        // Encontra a mensagem amigável correspondente
+        const combined = `${errCode} ${constraintName} ${description}`;
+        let friendly = ERROR_FRIENDLY_MAP.find(rule =>
+            rule.match.some(keyword => combined.includes(keyword))
+        );
+
+        // Fallback genérico se nenhuma regra bater
+        if (!friendly) {
+            friendly = {
+                icon: 'fas fa-exclamation-circle',
+                title: 'Não foi possível concluir',
+                msg: 'Esta ação não pôde ser realizada. Verifique as informações e tente novamente. Caso o problema persista, entre em contato com o suporte.'
+            };
+        }
+
+        // Atualiza o modal com conteúdo amigável
+        const iconEl = document.getElementById('error-modal-icon');
+        const titleEl = document.getElementById('error-title');
+        const msgEl = document.getElementById('error-message');
+        if (iconEl) iconEl.className = friendly.icon;
+        if (titleEl) titleEl.textContent = friendly.title;
+        if (msgEl) msgEl.textContent = friendly.msg;
+
+        document.getElementById('error-overlay').classList.add('active');
     }
 
     // Central de Interceptação de Escrita (Falso SGBD Engine)
