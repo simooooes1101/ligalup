@@ -1,0 +1,236 @@
+📑 DOCUMENTO DE ESCOPO E REQUISITOS (MVP - CONTROLE INTERNO)
+1. Introdução e Objetivo do MVP
+O objetivo deste sistema é fornecer uma plataforma SaaS de controle interno e gestão estratégica (backoffice) para a diretoria de uma Atlética Universitária.
+Nesta primeira fase (MVP), o software é estritamente de uso interno para os diretores. Ele visa mitigar erros operacionais entre os setores através de regras de sistema rígidas e garantir transparência total e governança para o executivo (Presidência e Vice-Presidência).
+
+2. Matriz de Permissões e Acessos (RBAC)
+O sistema opera sob o modelo de Role-Based Access Control (Controle de Acesso Baseado em Funções), estruturado estritamente sobre as diretorias listadas na image_668843.png.
+
+Presidência e Vice-Presidência (Nível Master): Acesso total (CRUD) a todas as telas, dados, logs e configurações do sistema. Superam qualquer trava de visualização das diretorias.
+
+Diretores de Pasta (Marketing, Produtos, Esportes, Eventos, Relações Externas, Jurídico, Tesouraria): Permissão de escrita (Criar/Editar) apenas nos módulos da sua respectiva diretoria. Permissão de leitura em módulos alheios apenas quando houver fluxo intersetorial (conforme regras de negócio).
+
+Coordenadores e Apoio: Permissões limitadas dentro da sua respectiva pasta (ex: Coordenador de Futsal enxerga apenas os atletas do Futsal).
+
+3. Especificação das Telas por Módulo
+Módulo Executivo (Presidência & Vice)
+Dashboard Geral: KPIs unificados (Saldo de Caixa, Próximos Eventos, Alertas de Contratos Vencendo, Atletas Irregulares).
+
+Painel de Auditoria de Notificações: Linha do tempo imutável listando todos os e-mails enviados pelo sistema, indicando se foram entregues com sucesso.
+
+Controle de Usuários: Tela para cadastrar, alterar cargos e desativar membros da diretoria.
+
+Módulo de Eventos & Marketing
+Planejador de Eventos (Kanban/Gantt): Criação de eventos com campos de data, local e orçamento previsto.
+
+Gestão de Tarefas de Logística: Lista de afazeres vinculada ao evento, com prazos e responsáveis da equipe de apoio.
+
+Calendário Editorial (Marketing): Cronograma visual para agendamento e planejamento da divulgação de eventos aprovados nas redes sociais.
+
+Módulo de Produtos
+Catálogo de Idealização: Cadastro de mockups, custos de fabricação e lista de fornecedores de camisetas e kits.
+
+Inventário/Estoque: Controle de estoque físico quantitativo por tamanho (P, M, G, GG, Único).
+
+Painel de Distribuição: Tela de controle interno para registrar quem comprou e dar baixa na retirada física do produto.
+
+Módulo de Esportes
+Painel de Modalidades: Cadastro de esportes e atribuição de seus respectivos coordenadores.
+
+Ficha de Atletas: Central de informações dos alunos-atletas contendo nome, RA (matrícula) e status de documentação.
+
+Módulo Financeiro (Tesouraria)
+Fluxo de Caixa: Lançamento manual ou automatizado de Entradas (vendas, patrocínios) e Saídas (custos de eventos, produtos).
+
+Tela de Conciliação Bancária: Área para upload de extratos e validação de saldos.
+
+Previsibilidade e Orçamentos: Gráficos de Orçado vs. Realizado por centro de custo/evento.
+
+Módulo Jurídico e Relações Externas
+CRM de Parcerias: Funil de vendas para captação de recursos (Prospecção até Contrato Ativo).
+
+Gestão Eletrônica de Documentos (GED): Repositório em nuvem de Estatutos, Atas de Eleição e Contratos de Patrocínio com alertas de vencimento.
+
+4. Modelagem de Dados (Banco de Dados Relacional)
+[usuarios] 1 ------ N [eventos] 1 ------ N [tarefas_logistica]
+   |                     |
+   |                     | 1
+   |                     |
+   |                     N
+   |------------- N [lancamentos_financeiros] M ------ 1 [produtos]
+   |
+   | 1
+   |
+   N
+[modalidades] 1 ------ N [atletas]
+Dicionário de Tabelas Essenciais:
+Tabela: usuarios
+id (UUID, PK)
+
+nome (String)
+
+email (String, Unique)
+
+senha_hash (String)
+
+cargo (Enum: 'Presidência', 'Vice-Presidência', 'Diretor', 'Coordenador', 'Apoio')
+
+diretoria (Enum: 'Marketing', 'Produtos', 'Esportes', 'Eventos', 'Relações Externas', 'Jurídico', 'Tesouraria', 'Nenhuma')
+
+status (Boolean)
+
+Tabela: eventos
+id (UUID, PK)
+
+nome (String)
+
+data_evento (DateTime)
+
+local (String)
+
+orcamento_previsto (Decimal)
+
+status_aprovacao (Enum: 'Rascunho', 'Aguardando Tesouraria', 'Aprovado', 'Cancelado')
+
+criador_id (UUID, FK -> usuarios.id)
+
+Tabela: tarefas_logistica
+id (UUID, PK)
+
+evento_id (UUID, FK -> eventos.id)
+
+descricao (String)
+
+data_prazo (Date)
+
+responsavel_id (UUID, FK -> usuarios.id)
+
+status (Enum: 'Pendente', 'Em Andamento', 'Concluído')
+
+Tabela: lancamentos_financeiros
+id (UUID, PK)
+
+tipo (Enum: 'Entrada', 'Saída')
+
+categoria (Enum: 'Ingressos', 'Produtos', 'Patrocínio', 'Aluguel de Quadra', 'Taxa de Campeonato', 'Logística Evento')
+
+valor (Decimal)
+
+data_competencia (Date)
+
+status_conciliacao (Boolean, Default: False)
+
+evento_id (UUID, FK -> eventos.id, Nullable)
+
+produto_id (UUID, FK -> produtos.id, Nullable)
+
+Tabela: produtos
+id (UUID, PK)
+
+nome (String)
+
+tamanho (Enum: 'P', 'M', 'G', 'GG', 'Único')
+
+preco_custo (Decimal)
+
+preco_venda (Decimal)
+
+estoque_atual (Integer)
+
+Tabela: modalidades
+id (UUID, PK)
+
+nome (String)
+
+coordenador_id (UUID, FK -> usuarios.id)
+
+Tabela: atletas
+id (UUID, PK)
+
+nome (String)
+
+ra_matricula (String, Unique)
+
+modalidade_id (UUID, FK -> modalidades.id)
+
+status_documentacao (Enum: 'Pendente', 'Em Análise', 'Aprovado')
+
+Tabela: parceiros_patrocinadores
+id (UUID, PK)
+
+nome_empresa (String)
+
+tipo_parceria (Enum: 'Financeiro', 'Permuta', 'Clube de Benefícios')
+
+status_funil (Enum: 'Prospecção', 'Proposta', 'Negociação', 'Contrato Ativo', 'Arquivado')
+
+Tabela: documentos_contratos
+id (UUID, PK)
+
+titulo (String)
+
+tipo_documento (Enum: 'Contrato', 'Estatuto', 'Ata de Eleição', 'Edital')
+
+arquivo_url (String)
+
+data_vencimento (Date, Nullable)
+
+parceiro_id (UUID, FK -> parceiros_patrocinadores.id, Nullable)
+
+Tabela: logs_notificacoes
+id (UUID, PK)
+
+usuario_id (UUID, FK -> usuarios.id, Nullable)
+
+tipo_notificacao (Enum: 'EMAIL', 'IN_APP')
+
+gatilho_regra (Enum: 'SOLICITACAO_VERBA', 'ATLETA_BARRADO', 'CONTRATO_VENCENDO', 'TENTATIVA_VIOLACAO')
+
+destinatario_email (String)
+
+status_entrega (Enum: 'PENDENTE', 'ENVIADO', 'ENTREGUE', 'FALHA')
+
+data_envio (DateTime)
+
+erro_detalhe (Text, Nullable)
+
+5. Regras de Negócio Rígidas (System Constraints)
+Estas regras bloqueiam requisições inválidas diretamente no backend/banco de dados, independentemente do front-end.
+
+RN-EV-01 (Fluxo de Aprovação): Um evento só passa do status Aguardando Tesouraria para Aprovado se o usuário executor possuir diretoria == 'Tesouraria' ou cargo IN ('Presidência', 'Vice-Presidência'). O Marketing não pode criar campanhas para eventos não aprovados.
+
+RN-EV-02 (Integração Financeira Automática): No momento exato da aprovação de um evento, o sistema gera uma linha compulsória em lancamentos_financeiros com o valor igual ao orcamento_previsto (tipo 'Saída').
+
+RN-FIN-01 (Imutabilidade de Caixa): Se lancamentos_financeiros.status_conciliacao == True, o sistema rejeita qualquer operação de UPDATE ou DELETE nos campos de valor, tipo e data. Correções exigem fluxo de estorno gerando um novo lançamento negativo.
+
+RN-PROD-01 (Estoque Blindado): O sistema impede que produtos.estoque_atual fique menor que zero. Vendas ou retiradas que excedam o estoque físico dão gatilho em um rollback imediato da transação bancária/registro.
+
+RN-ESP-01 (Elegibilidade Esportiva): O sistema impede a inscrição de um atleta_id em qualquer campeonato ou súmula de jogo se o campo atletas.status_documentacao != 'Aprovado'. Essa alteração de status é de direito exclusivo do Jurídico.
+
+RN-JUR-01 (Validação de Parceria): O funil de Relações Externas não aceita mover um parceiro para a coluna Contrato Ativo sem que exista um PDF correspondente na tabela documentos_contratos atrelado a ele.
+
+RN-LOG-01 (Auditoria Absoluta): A tabela logs_notificacoes é estritamente Append-Only. Qualquer tentativa de modificar ou apagar logs (mesmo por administradores master) deve retornar um erro fatal do sistema.
+
+6. Arquitetura de Notificações e e-Mails Transacionais
+O sistema utilizará um provedor de e-mail transacional (Ex: Resend ou SendGrid) integrado via API REST assíncrona.
+
+Gatilhos Críticos de E-mail:
+Solicitação de Verba: Disparado para a Tesouraria assim que um evento vai para o status Aguardando Tesouraria. Contém link direto para aprovação.
+
+Atleta Irregular: Disparado para o Diretor de Esportes e Coordenador da Modalidade quando o Jurídico reprova os documentos de um atleta. Alerta sobre o bloqueio automático de escalação.
+
+Vencimento de Contrato: Rotina diária (cron job) que avisa a Presidência e Relações Externas sobre contratos que expiram em exatamente 30 dias.
+
+Tratamento de Falha de Comunicação:
+Se a API do provedor falhar, o sistema armazena a string técnica do erro em logs_notificacoes.erro_detalhe, marca o status como FALHA e cria um alerta in-app prioritário na tela da Presidência para auditoria visual imediata.
+
+7. Diretrizes para o Plano de Implementação (Próximos Passos)
+Para estruturar o seu plano de ação a partir deste documento, recomendo dividir a execução nas seguintes fases:
+
+Fase 1: Infraestrutura e Banco de Dados (Setup): Criação das tabelas descritas na Seção 4 e configuração das permissões iniciais (RBAC). Configuração do domínio de e-mail (chaves SPF, DKIM) no provedor transacional.
+
+Fase 2: Desenvolvimento do Core Backend: Codificação das Regras de Negócio Rígidas (Seção 5) e das rotinas automáticas (como os gatilhos de criação de despesa e logs append-only).
+
+Fase 3: Construção das Telas (Frontend/No-Code): Criação das interfaces dos diretores, limitando os campos e botões que aparecem baseado no cargo do usuário logado.
+
+Fase 4: Integrações e Testes de Stress: Testar os fluxos intersetoriais de ponta a ponta (ex: forçar a barra tentando vender um produto sem estoque ou aprovar um evento sendo do marketing) para certificar-se de que o sistema barra as ações corretamente.

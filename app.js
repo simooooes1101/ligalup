@@ -67,6 +67,14 @@ document.addEventListener('DOMContentLoaded', () => {
         logs_notificacoes: [
             { id: 'log1', usuario_id: 'u3', tipo_notificacao: 'Email', gatilho_regra: 'SOLICITACAO_VERBA', destinatario_email: 'financeiro@atleticalup.com.br', status_entrega: 'ENVIADO', data_envio: '2026-05-20 10:14', erro_detalhe: null },
             { id: 'log2', usuario_id: 'u4', tipo_notificacao: 'Email', gatilho_regra: 'ATLETA_BARRADO', destinatario_email: 'esportes@atleticalup.com.br', status_entrega: 'FALHA', data_envio: '2026-05-22 15:30', erro_detalhe: 'Try/catch exception: Resend API Connection Timeout. Mailbox unavailable.' }
+        ],
+        fornecedores: [
+            { id: 'f1', nome: 'Confecções Estrela Ltda.', contato: 'Roberto Santos', telefone: '(11) 98765-4321', email: 'comercial@estrela.com', tipo_produto: 'Camisetas, Moletons', obs: 'Prazo de entrega: 15 dias úteis' },
+            { id: 'f2', nome: 'BrindesJá Promoções', contato: 'Fernanda Lima', telefone: '(21) 91234-5678', email: 'vendas@brindesja.com', tipo_produto: 'Canecas, Chaveiros', obs: 'Pedido mínimo: 50 unidades' }
+        ],
+        pedidos_compra: [
+            { id: 'pc1', fornecedor_id: 'f1', produto_id: 'p1', tamanho: 'M', quantidade: 30, data_previsao: '2026-06-15', status: 'Pendente' },
+            { id: 'pc2', fornecedor_id: 'f2', produto_id: 'p2', tamanho: 'Único', quantidade: 50, data_previsao: '2026-06-10', status: 'Recebido' }
         ]
     };
 
@@ -333,6 +341,112 @@ document.addEventListener('DOMContentLoaded', () => {
             logSQL(msg, 'error');
             showDBErrorDialog('45000 (Trigger Audit Rejection)', 'RN-LOG-01 (Auditoria Append-Only)', msg);
             return false;
+        },
+
+        // Simula INSERT em Fornecedores
+        insertFornecedor: function(nome, contato, telefone, email, tipo_produto, obs) {
+            logSQL(`INSERT INTO fornecedores (nome, contato, telefone, email, tipo_produto, obs) VALUES (...);`, 'query');
+            if (!nome || !tipo_produto) {
+                showDBErrorDialog('23502 (Not Null Violation)', 'fornecedores.nome', 'Nome e tipo de produto são campos obrigatórios.');
+                return false;
+            }
+            const newId = 'f_' + Date.now();
+            DB.fornecedores.push({ id: newId, nome, contato, telefone, email, tipo_produto, obs });
+            logSQL(`Fornecedor '${nome}' cadastrado com sucesso (ID: ${newId}).`, 'success');
+            refreshAllUI();
+            return newId;
+        },
+
+        // Simula INSERT em Pedidos de Compra
+        insertPedidoCompra: function(fornecedor_id, produto_id, tamanho, quantidade, data_previsao) {
+            logSQL(`INSERT INTO pedidos_compra (fornecedor_id, produto_id, tamanho, quantidade, data_previsao, status) VALUES (..., 'Pendente');`, 'query');
+            if (!fornecedor_id || !produto_id || !tamanho || quantidade <= 0) {
+                alert('Preencha todos os campos do pedido de compra corretamente!');
+                return false;
+            }
+            const newId = 'pc_' + Date.now();
+            DB.pedidos_compra.push({ id: newId, fornecedor_id, produto_id, tamanho, quantidade, data_previsao: data_previsao || null, status: 'Pendente' });
+            logSQL(`Pedido de Compra registrado com sucesso (ID: ${newId}).`, 'success');
+            refreshAllUI();
+            return newId;
+        },
+
+        // Simula trigger trg_receber_pedido_compra: atualiza estoque ao marcar como Recebido
+        receberPedidoCompra: function(pedidoId) {
+            const pedido = DB.pedidos_compra.find(pc => pc.id === pedidoId);
+            if (!pedido) return false;
+
+            if (pedido.status === 'Recebido') {
+                showDBErrorDialog('45000 (Trigger Exception)', 'trg_receber_pedido_compra', `Pedido '${pedidoId}' já foi marcado como Recebido e não pode ser processado novamente.`);
+                return false;
+            }
+
+            logSQL(`UPDATE pedidos_compra SET status = 'Recebido' WHERE id = '${pedidoId}';`, 'query');
+            logSQL(`Evaluating trg_receber_pedido_compra AFTER UPDATE...`, 'trigger');
+
+            // Localiza a variante de estoque correspondente ao produto + tamanho do pedido
+            const variant = DB.produto_variantes.find(pv => pv.produto_id === pedido.produto_id && pv.tamanho === pedido.tamanho);
+
+            if (variant) {
+                const oldStock = variant.estoque_atual;
+                variant.estoque_atual += pedido.quantidade;
+                logSQL(`Trigger trg_receber_pedido_compra: Estoque da variante '${pedido.tamanho}' do produto atualizado automaticamente: ${oldStock} → ${variant.estoque_atual} (+${pedido.quantidade}).`, 'trigger');
+            } else {
+                // Cria nova variante se não existir
+                const newVarId = 'pv_' + Date.now();
+                DB.produto_variantes.push({ id: newVarId, produto_id: pedido.produto_id, tamanho: pedido.tamanho, estoque_atual: pedido.quantidade });
+                logSQL(`Trigger trg_receber_pedido_compra: Nova variante '${pedido.tamanho}' criada e estoque inicializado em ${pedido.quantidade} unidades.`, 'trigger');
+            }
+
+            pedido.status = 'Recebido';
+            logSQL(`Pedido '${pedidoId}' marcado como Recebido. Estoque atualizado com sucesso.`, 'success');
+            refreshAllUI();
+            return true;
+        },
+
+        // Simula INSERT de Usuário / UPDATE de Usuário (sem exclusão)
+        saveUsuario: function(data) {
+            const { id, nome, email, password, cargo, diretoria, status } = data;
+
+            if (id) {
+                // Edição de usuário existente
+                const user = DB.usuarios.find(u => u.id === id);
+                if (!user) { alert('Usuário não encontrado!'); return false; }
+
+                logSQL(`UPDATE usuarios SET nome='${nome}', email='${email}', cargo='${cargo}', diretoria='${diretoria}', status=${status} WHERE id='${id}';`, 'query');
+                user.nome = nome;
+                user.email = email;
+                user.cargo = cargo;
+                user.diretoria = diretoria;
+                user.status = status;
+                if (password) user.password_hash = `[HASH de '${password}']`; // Simula re-hash
+                logSQL(`Usuário '${nome}' atualizado com sucesso (ID: ${id}). Status: ${status ? 'Ativo' : 'Inativo'}.`, 'success');
+            } else {
+                // Criação de novo usuário
+                const emailExists = DB.usuarios.find(u => u.email === email);
+                if (emailExists) {
+                    showDBErrorDialog('23505 (Unique Violation)', 'usuarios.email', `O e-mail '${email}' já está em uso por outro membro da diretoria.`);
+                    return false;
+                }
+                if (!password) {
+                    alert('É obrigatório definir uma senha para novos usuários!');
+                    return false;
+                }
+                const newId = 'u_' + Date.now();
+                DB.usuarios.push({ id: newId, nome, email, cargo, diretoria, status: true, password_hash: `[HASH de '${password}']` });
+                logSQL(`INSERT INTO usuarios (nome, email, cargo, diretoria, status) VALUES ('${nome}', '${email}', '${cargo}', '${diretoria}', true);`, 'query');
+                logSQL(`Novo membro '${nome}' cadastrado com sucesso (ID: ${newId}).`, 'success');
+
+                // Atualiza o seletor RBAC com novo usuário
+                const rbacSelect = document.getElementById('user-rbac-select');
+                const newOpt = document.createElement('option');
+                newOpt.value = newId;
+                newOpt.innerText = `${nome} (${cargo} / ${diretoria})`;
+                rbacSelect.appendChild(newOpt);
+            }
+
+            refreshAllUI();
+            return true;
         }
     };
 
@@ -399,20 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('kpi-contratos-vencer').innerText = countContracts;
         document.getElementById('kpi-atletas-irregulares').innerText = countAtletasIrregulares;
 
-        // Render Users list
-        const userListTbody = document.querySelector('#users-table tbody');
-        userListTbody.innerHTML = '';
-        DB.usuarios.forEach(user => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${user.nome}</b></td>
-                <td><code>${user.email}</code></td>
-                <td><span class="badge badge-secondary">${user.cargo}</span></td>
-                <td><span class="badge badge-success">${user.diretoria}</span></td>
-                <td><span class="badge badge-success">${user.status ? 'Ativo' : 'Inativo'}</span></td>
-            `;
-            userListTbody.appendChild(tr);
-        });
+        renderAccessModule();
 
         // Render Logs & Audit table (with Delete attempt simulated to test RN-LOG-01)
         const logsTbody = document.querySelector('#logs-table tbody');
@@ -448,7 +549,112 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // RENDER 2: EVENTS MODULE (KANBAN BOARD)
+    // RENDER 2: ACCESS MANAGEMENT MODULE (Gestão de Acessos)
+    function renderAccessModule() {
+        const searchInput = document.getElementById('search-users-input');
+        const query = searchInput ? searchInput.value.toLowerCase() : '';
+
+        const userListTbody = document.querySelector('#users-table tbody');
+        userListTbody.innerHTML = '';
+
+        const filteredUsers = DB.usuarios.filter(u =>
+            u.nome.toLowerCase().includes(query) ||
+            u.email.toLowerCase().includes(query) ||
+            u.cargo.toLowerCase().includes(query) ||
+            u.diretoria.toLowerCase().includes(query)
+        );
+
+        filteredUsers.forEach(user => {
+            const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer';
+            tr.title = 'Clique para editar este membro';
+            tr.innerHTML = `
+                <td><b>${user.nome}</b></td>
+                <td><code>${user.email}</code></td>
+                <td><span class="badge badge-secondary">${user.cargo}</span></td>
+                <td><span class="badge badge-secondary">${user.diretoria}</span></td>
+                <td>
+                    <span class="badge ${user.status ? 'badge-success' : 'badge-danger'}">
+                        ${user.status ? '<i class="fas fa-circle" style="font-size:8px;"></i> Ativo' : '<i class="fas fa-ban" style="font-size:10px;"></i> Inativo'}
+                    </span>
+                </td>
+            `;
+            // Click row to load user into the edit form
+            tr.addEventListener('click', () => {
+                document.getElementById('user-edit-id').value = user.id;
+                document.getElementById('user-nome').value = user.nome;
+                document.getElementById('user-email').value = user.email;
+                document.getElementById('user-cargo').value = user.cargo;
+                document.getElementById('user-diretoria').value = user.diretoria;
+                document.getElementById('user-status').checked = user.status;
+                document.getElementById('user-status-text').innerText = user.status ? 'Conta Ativa' : 'Conta Inativa';
+                document.getElementById('user-password').value = '';
+                document.getElementById('user-password-group').style.opacity = '0.6';
+                document.getElementById('user-form-title').innerHTML = `<i class="fas fa-user-edit"></i> Editando: ${user.nome}`;
+                document.getElementById('btn-cancel-user-edit').style.display = 'inline-flex';
+                document.getElementById('btn-save-user').innerHTML = '<i class="fas fa-save"></i> Salvar Alterações (Atualizar no Supabase)';
+                // Highlight row
+                document.querySelectorAll('#users-table tbody tr').forEach(r => r.style.background = '');
+                tr.style.background = 'rgba(234, 88, 12, 0.08)';
+            });
+            userListTbody.appendChild(tr);
+        });
+    }
+
+    // Reactive search: filter user table on input
+    const searchUsersInput = document.getElementById('search-users-input');
+    if (searchUsersInput) {
+        searchUsersInput.addEventListener('input', () => renderAccessModule());
+    }
+
+    // Toggle checkbox status text
+    const userStatusCheckbox = document.getElementById('user-status');
+    if (userStatusCheckbox) {
+        userStatusCheckbox.addEventListener('change', () => {
+            document.getElementById('user-status-text').innerText = userStatusCheckbox.checked ? 'Conta Ativa' : 'Conta Inativa';
+        });
+    }
+
+    // Reset user form to 'new user' mode
+    function resetUserForm() {
+        document.getElementById('user-edit-id').value = '';
+        document.getElementById('user-form-title').innerHTML = '<i class="fas fa-user-plus"></i> Cadastrar Novo Membro da Diretoria';
+        document.getElementById('form-manage-user').reset();
+        document.getElementById('user-status').checked = true;
+        document.getElementById('user-status-text').innerText = 'Conta Ativa';
+        document.getElementById('user-password-group').style.opacity = '1';
+        document.getElementById('btn-cancel-user-edit').style.display = 'none';
+        document.getElementById('btn-save-user').innerHTML = '<i class="fas fa-save"></i> Salvar Membro (Gravar no Supabase)';
+        document.querySelectorAll('#users-table tbody tr').forEach(r => r.style.background = '');
+    }
+
+    // User form submit handler
+    const formManageUser = document.getElementById('form-manage-user');
+    if (formManageUser) {
+        formManageUser.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('user-edit-id').value;
+            const data = {
+                id: editId || null,
+                nome: document.getElementById('user-nome').value,
+                email: document.getElementById('user-email').value,
+                password: document.getElementById('user-password').value,
+                cargo: document.getElementById('user-cargo').value,
+                diretoria: document.getElementById('user-diretoria').value,
+                status: document.getElementById('user-status').checked
+            };
+
+            const ok = DB_Engine.saveUsuario(data);
+            if (ok) resetUserForm();
+        });
+    }
+
+    const btnCancelEdit = document.getElementById('btn-cancel-user-edit');
+    if (btnCancelEdit) {
+        btnCancelEdit.addEventListener('click', () => resetUserForm());
+    }
+
+    // RENDER 3: EVENTS MODULE (KANBAN BOARD)
     function renderEventsModule() {
         const cols = {
             'Rascunho': document.getElementById('col-rascunho-body'),
@@ -1054,10 +1260,124 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
     // 4. BOOTSTRAP E RENDERIZADOR TOTAL
     // ------------------------------------------------------------------------
+
+    // RENDER: SUPPLIERS & PURCHASE ORDERS (inside Products module)
+    function renderProductsSupplyModule() {
+        // -- Tabela de Fornecedores --
+        const suppliersTbody = document.querySelector('#suppliers-table tbody');
+        if (!suppliersTbody) return;
+        suppliersTbody.innerHTML = '';
+        DB.fornecedores.forEach(f => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${f.nome}</b></td>
+                <td>${f.tipo_produto}</td>
+                <td>${f.contato ? `${f.contato}` : ''} ${f.telefone ? `<br><code style="font-size:11px;">${f.telefone}</code>` : ''}</td>
+            `;
+            suppliersTbody.appendChild(tr);
+        });
+
+        // -- Tabela de Pedidos de Compra --
+        const ordersTbody = document.querySelector('#orders-table tbody');
+        if (!ordersTbody) return;
+        ordersTbody.innerHTML = '';
+        DB.pedidos_compra.forEach(pc => {
+            const fornecedor = DB.fornecedores.find(f => f.id === pc.fornecedor_id);
+            const produto = DB.produtos.find(p => p.id === pc.produto_id);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${produto ? produto.nome : '—'}</b> <span class="badge badge-secondary" style="font-size:11px;">${pc.tamanho}</span></td>
+                <td>${pc.quantidade}</td>
+                <td>${fornecedor ? fornecedor.nome : '—'}</td>
+                <td>${pc.data_previsao || '—'}</td>
+                <td>
+                    <span class="badge ${pc.status === 'Recebido' ? 'badge-success' : 'badge-warning'}">
+                        ${pc.status === 'Recebido' ? '<i class="fas fa-check"></i> Recebido' : '<i class="fas fa-clock"></i> Pendente'}
+                    </span>
+                </td>
+                <td>
+                    ${pc.status !== 'Recebido' ? `
+                        <button class="btn btn-secondary btn-receive-order" data-pc-id="${pc.id}" style="padding:4px 8px; font-size:11px; background:var(--success-glow); color:var(--success);">
+                            <i class="fas fa-box-open"></i> Receber
+                        </button>
+                    ` : '<span style="font-size:11px; color:var(--text-muted);">Concluído</span>'}
+                </td>
+            `;
+            ordersTbody.appendChild(tr);
+        });
+
+        // Receive Order button listeners (simula trigger trg_receber_pedido_compra)
+        document.querySelectorAll('.btn-receive-order').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pcId = btn.getAttribute('data-pc-id');
+                DB_Engine.receberPedidoCompra(pcId);
+            });
+        });
+
+        // Populate supplier select in order form
+        const orderSupplierSelect = document.getElementById('order-supplier-select');
+        if (orderSupplierSelect) {
+            orderSupplierSelect.innerHTML = '<option value="">Selecione o Fornecedor...</option>';
+            DB.fornecedores.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                opt.innerText = f.nome;
+                orderSupplierSelect.appendChild(opt);
+            });
+        }
+
+        // Populate product select in order form
+        const orderProductSelect = document.getElementById('order-product-select');
+        if (orderProductSelect) {
+            orderProductSelect.innerHTML = '<option value="">Selecione o Produto...</option>';
+            DB.produtos.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.innerText = p.nome;
+                orderProductSelect.appendChild(opt);
+            });
+        }
+    }
+
+    // Event Handler: Create Supplier
+    const formCreateSupplier = document.getElementById('form-create-supplier');
+    if (formCreateSupplier) {
+        formCreateSupplier.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const ok = DB_Engine.insertFornecedor(
+                document.getElementById('sup-nome').value,
+                document.getElementById('sup-contato').value,
+                document.getElementById('sup-telefone').value,
+                document.getElementById('sup-email').value,
+                document.getElementById('sup-tipo').value,
+                document.getElementById('sup-obs').value
+            );
+            if (ok) formCreateSupplier.reset();
+        });
+    }
+
+    // Event Handler: Create Purchase Order
+    const formCreateOrder = document.getElementById('form-create-order');
+    if (formCreateOrder) {
+        formCreateOrder.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const ok = DB_Engine.insertPedidoCompra(
+                document.getElementById('order-supplier-select').value,
+                document.getElementById('order-product-select').value,
+                document.getElementById('order-size').value,
+                parseInt(document.getElementById('order-qty').value) || 0,
+                document.getElementById('order-date').value
+            );
+            if (ok) formCreateOrder.reset();
+        });
+    }
+
     function refreshAllUI() {
         renderExecutiveDashboard();
+        renderAccessModule();
         renderEventsModule();
         renderProductsModule();
+        renderProductsSupplyModule();
         renderSportsModule();
         renderFinanceModule();
         renderLegalModule();

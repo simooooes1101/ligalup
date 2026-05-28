@@ -235,3 +235,26 @@ CREATE TRIGGER trg_bloquear_modificacao_logs_delete
     BEFORE DELETE ON logs_notificacoes
     FOR EACH ROW
     EXECUTE FUNCTION fn_trg_bloquear_modificacao_logs();
+
+-- ----------------------------------------------------------------------------
+-- Novidade Fase 2: Recebimento de Pedido de Compra e incremento de estoque
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fn_trg_receber_pedido_compra()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Se o status está mudando para 'Recebido'
+    IF NEW.status = 'Recebido' AND (OLD.status IS NULL OR OLD.status != 'Recebido') THEN
+        -- Incrementar o estoque físico na tabela produto_variantes
+        INSERT INTO produto_variantes (produto_id, tamanho, estoque_atual)
+        VALUES (NEW.produto_id, NEW.tamanho, NEW.quantidade)
+        ON CONFLICT (produto_id, tamanho)
+        DO UPDATE SET estoque_atual = produto_variantes.estoque_atual + EXCLUDED.quantidade;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_receber_pedido_compra
+    AFTER INSERT OR UPDATE OF status ON pedidos_compra
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_trg_receber_pedido_compra();

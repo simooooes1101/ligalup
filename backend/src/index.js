@@ -195,6 +195,80 @@ app.post('/api/users', protect, restrictTo(['Master']), async (req, res, next) =
   }
 });
 
+// Editar membro da diretoria (Exclusivo Presidência - Nível Master)
+app.put('/api/users/:id', protect, restrictTo(['Master']), async (req, res, next) => {
+  const { id } = req.params;
+  const { nome, email, cargo, diretoria, status, password } = req.body;
+  try {
+    // 1. Verifica se o usuário existe
+    const checkUser = await db.query('SELECT id, senha_hash FROM usuarios WHERE id = $1', [id]);
+    if (checkUser.rowCount === 0) {
+      return res.status(404).json({ status: 'fail', error: 'Usuário não encontrado!' });
+    }
+
+    // 2. Se e-mail foi alterado, verifica se já está em uso
+    if (email) {
+      const checkEmail = await db.query('SELECT id FROM usuarios WHERE email = $1 AND id != $2', [email, id]);
+      if (checkEmail.rowCount > 0) {
+        return res.status(409).json({ status: 'fail', error: 'Erro: Este endereço de e-mail já está cadastrado em outra conta!' });
+      }
+    }
+
+    // 3. Monta query dinâmica de update
+    let queryText = 'UPDATE usuarios SET ';
+    const queryParams = [];
+    let paramIndex = 1;
+
+    if (nome !== undefined) {
+      queryText += `nome = $${paramIndex++}, `;
+      queryParams.push(nome);
+    }
+    if (email !== undefined) {
+      queryText += `email = $${paramIndex++}, `;
+      queryParams.push(email);
+    }
+    if (cargo !== undefined) {
+      queryText += `cargo = $${paramIndex++}, `;
+      queryParams.push(cargo);
+    }
+    if (diretoria !== undefined) {
+      queryText += `diretoria = $${paramIndex++}, `;
+      queryParams.push(diretoria);
+    }
+    if (status !== undefined) {
+      queryText += `status = $${paramIndex++}, `;
+      queryParams.push(status);
+    }
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      const hashPassword = await bcrypt.hash(password, salt);
+      queryText += `senha_hash = $${paramIndex++}, `;
+      queryParams.push(hashPassword);
+    }
+
+    // Se nenhum campo foi fornecido para atualização
+    if (queryParams.length === 0) {
+      return res.status(400).json({ status: 'fail', error: 'Nenhum campo fornecido para atualização.' });
+    }
+
+    // Remove a última vírgula e espaço
+    queryText = queryText.slice(0, -2);
+    queryText += ` WHERE id = $${paramIndex++} RETURNING id, nome, email, cargo, diretoria, status;`;
+    queryParams.push(id);
+
+    const updatedUserRes = await db.queryWithSession(req.user.id, queryText, queryParams);
+    const updatedUser = updatedUserRes.rows[0];
+
+    res.status(200).json({
+      status: 'success',
+      data: updatedUser,
+      message: 'Membro da diretoria atualizado com sucesso no Supabase.'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ----------------------------------------------------------------------------
 // 2. ROTAS DE EVENTOS E MARKETING
 // ----------------------------------------------------------------------------
@@ -366,6 +440,118 @@ app.post('/api/products/distribute', protect, restrictTo(['Master', 'Diretor', '
       venda: financeRes.rows[0],
       message: 'Distribuição realizada com sucesso e caixa alimentado.'
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Listar fornecedores
+app.get('/api/suppliers', protect, async (req, res, next) => {
+  try {
+    const suppliersRes = await db.query('SELECT * FROM fornecedores ORDER BY nome');
+    res.status(200).json({ status: 'success', data: suppliersRes.rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cadastrar fornecedor (Exclusivo Master/Produtos)
+app.post('/api/suppliers', protect, restrictTo(['Master', 'Diretor'], ['Produtos']), async (req, res, next) => {
+  const { nome, contato_nome, telefone, email, tipo_produto, observacoes } = req.body;
+  try {
+    if (!nome) {
+      return res.status(400).json({ status: 'fail', error: 'Nome do fornecedor é obrigatório!' });
+    }
+    const queryText = `
+      INSERT INTO fornecedores (nome, contato_nome, telefone, email, tipo_produto, observacoes)
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
+    `;
+    const supplierRes = await db.queryWithSession(req.user.id, queryText, [
+      nome, contato_nome, telefone, email, tipo_produto, observacoes
+    ]);
+    res.status(210).json({ status: 'success', data: supplierRes.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Listar pedidos de compra (encomendas)
+app.get('/api/orders', protect, async (req, res, next) => {
+  try {
+    const ordersRes = await db.query(`
+      SELECT pc.*, f.nome as fornecedor_nome, p.nome as produto_nome
+      FROM pedidos_compra pc
+      JOIN fornecedores f ON pc.fornecedor_id = f.id
+      JOIN produtos p ON pc.produto_id = p.id
+      ORDER BY pc.data_pedido DESC
+    `);
+    res.status(200).json({ status: 'success', data: ordersRes.rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cadastrar pedido de compra (Exclusivo Master/Produtos)
+app.post('/api/orders', protect, restrictTo(['Master', 'Diretor'], ['Produtos']), async (req, res, next) => {
+  const { fornecedor_id, produto_id, tamanho, quantidade, data_previsao } = req.body;
+  try {
+    if (!fornecedor_id || !produto_id || !tamanho || !quantidade) {
+      return res.status(400).json({ status: 'fail', error: 'Fornecedor, Produto, Tamanho e Quantidade são obrigatórios!' });
+    }
+    const queryText = `
+      INSERT INTO pedidos_compra (fornecedor_id, produto_id, tamanho, quantidade, status, data_previsao)
+      VALUES ($1, $2, $3, $4, 'Pendente', $5) RETURNING *;
+    `;
+    const orderRes = await db.queryWithSession(req.user.id, queryText, [
+      fornecedor_id, produto_id, tamanho, quantidade, data_previsao
+    ]);
+    
+    // Busca informações para retornar completo
+    const fullOrderRes = await db.query(`
+      SELECT pc.*, f.nome as fornecedor_nome, p.nome as produto_nome
+      FROM pedidos_compra pc
+      JOIN fornecedores f ON pc.fornecedor_id = f.id
+      JOIN produtos p ON pc.produto_id = p.id
+      WHERE pc.id = $1
+    `, [orderRes.rows[0].id]);
+
+    res.status(210).json({ status: 'success', data: fullOrderRes.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Atualizar status do pedido de compra (Exclusivo Master/Produtos)
+app.put('/api/orders/:id/status', protect, restrictTo(['Master', 'Diretor'], ['Produtos']), async (req, res, next) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    if (!status || !['Pendente', 'Recebido', 'Cancelado'].includes(status)) {
+      return res.status(400).json({ status: 'fail', error: 'Status inválido!' });
+    }
+
+    const queryText = `
+      UPDATE pedidos_compra 
+      SET status = $1 
+      WHERE id = $2 RETURNING *;
+    `;
+    const updatedOrderRes = await db.queryWithSession(req.user.id, queryText, [status, id]);
+    const updatedOrder = updatedOrderRes.rows[0];
+
+    if (!updatedOrder) {
+      return res.status(404).json({ status: 'fail', error: 'Pedido de compra não localizado!' });
+    }
+
+    // Busca detalhes completos para resposta
+    const fullOrderRes = await db.query(`
+      SELECT pc.*, f.nome as fornecedor_nome, p.nome as produto_nome
+      FROM pedidos_compra pc
+      JOIN fornecedores f ON pc.fornecedor_id = f.id
+      JOIN produtos p ON pc.produto_id = p.id
+      WHERE pc.id = $1
+    `, [id]);
+
+    res.status(200).json({ status: 'success', data: fullOrderRes.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -691,6 +877,182 @@ app.use((err, req, res, next) => {
     status: 'error',
     error: 'Ocorreu um erro interno no servidor de banco de dados. Transação revertida.'
   });
+});
+
+// ============================================================================
+// ROTAS: GESTÃO DE USUÁRIOS / MEMBROS DA DIRETORIA (Sem exclusão - Fase 2)
+// ============================================================================
+
+// PUT /api/users/:id — Atualiza dados ou status de um usuário (sem DELETE)
+app.put('/api/users/:id', protect, restrictTo('Master'), async (req, res) => {
+  const { id } = req.params;
+  const { nome, email, cargo, diretoria, status, password } = req.body;
+
+  try {
+    // Verifica unicidade de e-mail (excluindo o próprio usuário)
+    if (email) {
+      const emailCheck = await db.query(
+        'SELECT id FROM usuarios WHERE email = $1 AND id != $2',
+        [email, id]
+      );
+      if (emailCheck.rows.length > 0) {
+        return res.status(409).json({ error: 'E-mail já está em uso por outro membro da diretoria.' });
+      }
+    }
+
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (nome !== undefined) { fields.push(`nome = $${idx++}`); values.push(nome); }
+    if (email !== undefined) { fields.push(`email = $${idx++}`); values.push(email); }
+    if (cargo !== undefined) { fields.push(`cargo = $${idx++}`); values.push(cargo); }
+    if (diretoria !== undefined) { fields.push(`diretoria = $${idx++}`); values.push(diretoria); }
+    if (status !== undefined) { fields.push(`ativo = $${idx++}`); values.push(status); }
+
+    // Troca de senha (re-hash)
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(password, salt);
+      fields.push(`password_hash = $${idx++}`);
+      values.push(hash);
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar foi enviado.' });
+    }
+
+    values.push(id);
+    const result = await db.query(
+      `UPDATE usuarios SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING id, nome, email, cargo, diretoria, ativo`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    console.log(`✅ Usuário ${id} atualizado com sucesso. Status: ${status !== undefined ? status : 'não alterado'}`);
+    res.json({ message: 'Usuário atualizado com sucesso no Supabase.', user: result.rows[0] });
+  } catch (err) {
+    console.error('Erro ao atualizar usuário:', err.message);
+    res.status(500).json({ error: 'Erro interno ao atualizar o usuário no banco de dados.' });
+  }
+});
+
+// ============================================================================
+// ROTAS: FORNECEDORES
+// ============================================================================
+
+// GET /api/suppliers — Lista todos os fornecedores
+app.get('/api/suppliers', protect, async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM fornecedores ORDER BY nome ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao listar fornecedores:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar fornecedores.' });
+  }
+});
+
+// POST /api/suppliers — Cadastra um novo fornecedor
+app.post('/api/suppliers', protect, restrictTo('Master', 'Diretor'), async (req, res) => {
+  const { nome, contato, telefone, email, tipo_produto, obs } = req.body;
+
+  if (!nome || !tipo_produto) {
+    return res.status(400).json({ error: 'Nome e tipo_produto são campos obrigatórios.' });
+  }
+
+  try {
+    const result = await db.query(
+      `INSERT INTO fornecedores (nome, contato, telefone, email, tipo_produto, obs)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [nome, contato || null, telefone || null, email || null, tipo_produto, obs || null]
+    );
+    console.log(`✅ Fornecedor '${nome}' cadastrado com sucesso.`);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Erro ao cadastrar fornecedor:', err.message);
+    res.status(500).json({ error: 'Erro interno ao cadastrar o fornecedor.' });
+  }
+});
+
+// ============================================================================
+// ROTAS: PEDIDOS DE COMPRA / ENCOMENDAS
+// ============================================================================
+
+// GET /api/orders — Lista todos os pedidos de compra
+app.get('/api/orders', protect, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT pc.*, f.nome AS fornecedor_nome, p.nome AS produto_nome
+      FROM pedidos_compra pc
+      LEFT JOIN fornecedores f ON f.id = pc.fornecedor_id
+      LEFT JOIN produtos p ON p.id = pc.produto_id
+      ORDER BY pc.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao listar pedidos de compra:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar pedidos de compra.' });
+  }
+});
+
+// POST /api/orders — Registra um novo pedido de compra
+app.post('/api/orders', protect, restrictTo('Master', 'Diretor'), async (req, res) => {
+  const { fornecedor_id, produto_id, tamanho, quantidade, data_previsao } = req.body;
+
+  if (!fornecedor_id || !produto_id || !tamanho || !quantidade || quantidade <= 0) {
+    return res.status(400).json({ error: 'Campos obrigatórios: fornecedor_id, produto_id, tamanho, quantidade (> 0).' });
+  }
+
+  try {
+    const result = await db.query(
+      `INSERT INTO pedidos_compra (fornecedor_id, produto_id, tamanho, quantidade, data_previsao, status)
+       VALUES ($1, $2, $3, $4, $5, 'Pendente') RETURNING *`,
+      [fornecedor_id, produto_id, tamanho, quantidade, data_previsao || null]
+    );
+    console.log(`✅ Pedido de compra registrado (ID: ${result.rows[0].id}).`);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Erro ao registrar pedido de compra:', err.message);
+    res.status(500).json({ error: 'Erro interno ao registrar o pedido de compra.' });
+  }
+});
+
+// PUT /api/orders/:id/status — Marca pedido como Recebido e incrementa estoque (via trigger no DB)
+app.put('/api/orders/:id/status', protect, restrictTo('Master', 'Diretor'), async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (status !== 'Recebido') {
+    return res.status(400).json({ error: "Apenas a transição para o status 'Recebido' é permitida nesta rota." });
+  }
+
+  try {
+    // Busca o pedido
+    const pedidoResult = await db.query('SELECT * FROM pedidos_compra WHERE id = $1', [id]);
+    if (pedidoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Pedido de compra não encontrado.' });
+    }
+    const pedido = pedidoResult.rows[0];
+
+    if (pedido.status === 'Recebido') {
+      return res.status(409).json({ error: 'Este pedido já foi marcado como Recebido anteriormente.' });
+    }
+
+    // Atualiza o status do pedido (o trigger trg_receber_pedido_compra no PostgreSQL cuida do estoque)
+    const result = await db.query(
+      `UPDATE pedidos_compra SET status = 'Recebido', updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [id]
+    );
+
+    console.log(`✅ Pedido '${id}' marcado como Recebido. Trigger trg_receber_pedido_compra ativado no PostgreSQL.`);
+    res.json({ message: 'Pedido marcado como Recebido. Estoque atualizado pelo trigger do banco de dados.', order: result.rows[0] });
+  } catch (err) {
+    console.error('Erro ao receber pedido:', err.message);
+    res.status(500).json({ error: 'Erro interno ao processar o recebimento do pedido.' });
+  }
 });
 
 // ----------------------------------------------------------------------------

@@ -28,8 +28,14 @@
                     <li class="nav-item active" data-target="mod-dashboard">
                         <i class="fas fa-chart-line"></i> Dashboard Executivo
                     </li>
+                    <li class="nav-item" data-target="mod-acessos">
+                        <i class="fas fa-users-cog"></i> Gestão de Acessos
+                    </li>
                     <li class="nav-item" data-target="mod-eventos">
-                        <i class="fas fa-calendar-day"></i> Eventos & Marketing
+                        <i class="fas fa-calendar-day"></i> Diretoria de Eventos
+                    </li>
+                    <li class="nav-item" data-target="mod-marketing">
+                        <i class="fas fa-bullhorn"></i> Diretoria de Marketing
                     </li>
                     <li class="nav-item" data-target="mod-produtos">
                         <i class="fas fa-tshirt"></i> Produtos & Estoque
@@ -88,60 +94,40 @@
                     </div>
                 </div>
             </header>
-
-            <!-- 4 KPIS GLOBAIS DE FLUXO -->
-            <div class="kpis-grid">
-                <div class="glass-card kpi-card financeiro">
-                    <div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div>
-                    <div class="kpi-info">
-                        <p>Caixa Geral</p>
-                        <h3 id="kpi-saldo-caixa">R$ 0,00</h3>
-                    </div>
-                </div>
-                <div class="glass-card kpi-card eventos">
-                    <div class="kpi-icon"><i class="fas fa-hourglass-half"></i></div>
-                    <div class="kpi-info">
-                        <p>Eventos s/ Aprovação</p>
-                        <h3 id="kpi-eventos-pendentes">0</h3>
-                    </div>
-                </div>
-                <div class="glass-card kpi-card contratos">
-                    <div class="kpi-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <div class="kpi-info">
-                        <p>Contratos a Vencer</p>
-                        <h3 id="kpi-contratos-vencer">0</h3>
-                    </div>
-                </div>
-                <div class="glass-card kpi-card atletas">
-                    <div class="kpi-icon"><i class="fas fa-user-times"></i></div>
-                    <div class="kpi-info">
-                        <p>Atletas Irregulares</p>
-                        <h3 id="kpi-atletas-irregulares">0</h3>
-                    </div>
-                </div>
-            </div>
-
             <!-- ========================================================== -->
             <!-- SEÇÃO 1: DASHBOARD EXECUTIVO -->
             <!-- ========================================================== -->
             <section id="mod-dashboard" class="module-section active">
-                <div class="glass-card" style="margin-bottom: 24px;">
-                    <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-users-cog"></i> Diretoria e Administração de Acessos (RBAC)</h3>
-                    <div class="table-container">
-                        <table id="users-table">
-                            <thead>
-                                <tr>
-                                    <th>Nome do Diretor</th>
-                                    <th>Email Institucional</th>
-                                    <th>Cargo</th>
-                                    <th>Pasta/Diretoria</th>
-                                    <th>Status de Conta</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Dinâmico JS -->
-                            </tbody>
-                        </table>
+                
+                <!-- 4 KPIS GLOBAIS DE FLUXO -->
+                <div class="kpis-grid" style="margin-bottom: 24px;">
+                    <div class="glass-card kpi-card financeiro">
+                        <div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div>
+                        <div class="kpi-info">
+                            <p>Caixa Geral</p>
+                            <h3 id="kpi-saldo-caixa">R$ 0,00</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card kpi-card eventos">
+                        <div class="kpi-icon"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="kpi-info">
+                            <p>Eventos s/ Aprovação</p>
+                            <h3 id="kpi-eventos-pendentes">0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card kpi-card contratos">
+                        <div class="kpi-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="kpi-info">
+                            <p>Contratos a Vencer</p>
+                            <h3 id="kpi-contratos-vencer">0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card kpi-card atletas">
+                        <div class="kpi-icon"><i class="fas fa-user-times"></i></div>
+                        <div class="kpi-info">
+                            <p>Atletas Irregulares</p>
+                            <h3 id="kpi-atletas-irregulares">0</h3>
+                        </div>
                     </div>
                 </div>
                 
@@ -171,7 +157,105 @@
             </section>
 
             <!-- ========================================================== -->
-            <!-- SEÇÃO 2: EVENTOS & MARKETING -->
+            <!-- ========================================================== -->
+            <!-- SEÇÃO 2: GESTÃO DE ACESSOS (RBAC & MEMBROS) -->
+            <!-- ========================================================== -->
+            <section id="mod-acessos" class="module-section">
+                <!-- Formulário superior para Criar/Editar usuários -->
+                <div class="glass-card" style="margin-bottom: 24px;">
+                    <h3 style="font-family: var(--font-heading); margin-bottom: 16px;" id="user-form-title"><i class="fas fa-user-plus"></i> Cadastrar Novo Membro da Diretoria</h3>
+                    <form id="form-manage-user">
+                        <input type="hidden" id="user-edit-id" value="">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nome Completo</label>
+                                <input type="text" class="form-control" id="user-nome" placeholder="Ex: Eduardo Carolo" required>
+                            </div>
+                            <div class="form-group">
+                                <label>E-mail Institucional</label>
+                                <input type="email" class="form-control" id="user-email" placeholder="Ex: presidencia@atleticalup.com.br" required>
+                            </div>
+                            <div class="form-group" id="user-password-group">
+                                <label>Senha de Acesso</label>
+                                <input type="password" class="form-control" id="user-password" placeholder="Defina a senha de acesso" required>
+                                <small style="font-size:10px; color:var(--text-secondary); margin-top:2px;">Senha padrão para novo login no portal.</small>
+                            </div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Cargo (Hierarquia)</label>
+                                <select class="form-control" id="user-cargo" required>
+                                    <option value="Master">Master (Presidência / Vice)</option>
+                                    <option value="Diretor">Diretor (Chefe de Pasta)</option>
+                                    <option value="Coordenador">Coordenador</option>
+                                    <option value="Apoio">Apoio</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Diretoria / Pasta</label>
+                                <select class="form-control" id="user-diretoria" required>
+                                    <option value="Nenhuma">Nenhuma (Geral / Apoio)</option>
+                                    <option value="Presidência">Presidência</option>
+                                    <option value="Vice-Presidência">Vice-Presidência</option>
+                                    <option value="Tesouraria">Tesouraria</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Produtos">Produtos</option>
+                                    <option value="Esportes">Esportes</option>
+                                    <option value="Jurídico">Jurídico</option>
+                                    <option value="Relações Externas">Relações Externas</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="justify-content: center; align-items: flex-start;">
+                                <label style="margin-bottom: 8px;">Status da Conta</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="user-status" checked style="width:20px; height:20px; cursor:pointer;">
+                                    <span style="font-size:14px; color:#fff;" id="user-status-text">Conta Ativa</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:12px; margin-top:8px;">
+                            <button type="submit" class="btn btn-accent" id="btn-save-user">
+                                <i class="fas fa-save"></i> Salvar Membro (Gravar no Supabase)
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-user-edit" style="display:none; border-color:var(--text-muted); color:var(--text-primary);">
+                                <i class="fas fa-times"></i> Cancelar Edição
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Tabela inferior com busca rápida -->
+                <div class="glass-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:16px; margin-bottom: 16px;">
+                        <h3 style="font-family: var(--font-heading);"><i class="fas fa-users-cog"></i> Diretoria e Membros Cadastrados</h3>
+                        <div style="position: relative; max-width: 300px; width: 100%;">
+                            <input type="text" class="form-control" id="search-users-input" placeholder="🔍 Busca rápida..." style="padding-left:12px;">
+                        </div>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px; border-left: 2px solid var(--primary); padding-left: 8px;">
+                        Clique em uma linha da tabela para carregar os dados no formulário de edição acima.
+                    </p>
+                    <div class="table-container">
+                        <table id="users-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome do Diretor</th>
+                                    <th>Email Institucional</th>
+                                    <th>Cargo</th>
+                                    <th>Pasta/Diretoria</th>
+                                    <th>Status de Conta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dinâmico JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================== -->
+            <!-- SEÇÃO 3: DIRETORIA DE EVENTOS -->
             <!-- ========================================================== -->
             <section id="mod-eventos" class="module-section">
                 <div class="glass-card" style="margin-bottom: 24px;">
@@ -208,37 +292,42 @@
                     </div>
                 </div>
 
-                <div class="products-grid">
-                    <!-- Cadastro de eventos -->
-                    <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-plus-circle"></i> Cadastrar Nova Ideia de Evento</h3>
-                        <form id="form-create-event">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label>Nome do Evento</label>
-                                    <input type="text" class="form-control" id="evt-nome" placeholder="Ex: Interbatuc LUP" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Orçamento Previsto (R$)</label>
-                                    <input type="number" class="form-control" id="evt-orcamento" placeholder="Ex: 5000.00" step="0.01" required>
-                                </div>
+                <!-- Cadastro de eventos -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-plus-circle"></i> Cadastrar Nova Ideia de Evento</h3>
+                    <form id="form-create-event">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nome do Evento</label>
+                                <input type="text" class="form-control" id="evt-nome" placeholder="Ex: Interbatuc LUP" required>
                             </div>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label>Local</label>
-                                    <input type="text" class="form-control" id="evt-local" placeholder="Ex: Quadra Externa" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Data Prevista</label>
-                                    <input type="datetime-local" class="form-control" id="evt-data" required>
-                                </div>
+                            <div class="form-group">
+                                <label>Orçamento Previsto (R$)</label>
+                                <input type="number" class="form-control" id="evt-orcamento" placeholder="Ex: 5000.00" step="0.01" required>
                             </div>
-                            <button type="submit" class="btn btn-accent" style="margin-top:8px;">
-                                <i class="fas fa-save"></i> Gravar em Rascunho
-                            </button>
-                        </form>
-                    </div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Local</label>
+                                <input type="text" class="form-control" id="evt-local" placeholder="Ex: Quadra Externa" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Data Prevista</label>
+                                <input type="datetime-local" class="form-control" id="evt-data" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-accent" style="margin-top:8px;">
+                            <i class="fas fa-save"></i> Gravar em Rascunho
+                        </button>
+                    </form>
+                </div>
+            </section>
 
+            <!-- ========================================================== -->
+            <!-- SEÇÃO 4: DIRETORIA DE MARKETING -->
+            <!-- ========================================================== -->
+            <section id="mod-marketing" class="module-section">
+                <div class="products-grid">
                     <!-- Calendário editorial do marketing -->
                     <div class="glass-card">
                         <h3 style="font-family: var(--font-heading); margin-bottom: 4px;"><i class="fas fa-bullhorn"></i> Calendário Editorial de Marketing (RN-EV-01)</h3>
@@ -276,9 +365,12 @@
                         <button type="button" class="btn" id="btn-add-marketing" style="margin-top:8px;">
                             <i class="fas fa-calendar-plus"></i> Agendar Publicação
                         </button>
+                    </div>
 
-                        <h4 style="margin-top:20px; font-size:13px; color:var(--accent);">Cronograma de Postagens:</h4>
-                        <div class="list-group" id="editorial-list" style="margin-top:10px; max-height:150px; overflow-y:auto;">
+                    <!-- Cronograma de Postagens -->
+                    <div class="glass-card">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-list-ul"></i> Cronograma de Postagens</h3>
+                        <div class="list-group" id="editorial-list" style="max-height: 380px; overflow-y:auto;">
                             <!-- Dinâmico JS -->
                         </div>
                     </div>
@@ -348,6 +440,129 @@
                         <button type="button" class="btn btn-accent" id="btn-distribute-product" style="margin-top:12px; width:100%;">
                             <i class="fas fa-shopping-cart"></i> Finalizar Distribuição (Inserir Venda)
                         </button>
+                    </div>
+                </div>
+
+                <!-- NOVO ROW: FORNECEDORES E ENCOMENDAS (FASE 2) -->
+                <div class="products-grid" style="margin-top: 24px;">
+                    
+                    <!-- Cadastro e lista de Fornecedores -->
+                    <div class="glass-card">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-truck-loading"></i> Cadastro de Fornecedores Oficiais</h3>
+                        <form id="form-create-supplier" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-glass); padding-bottom: 16px;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Nome do Fornecedor</label>
+                                    <input type="text" class="form-control" id="sup-nome" placeholder="Ex: Confecções Estrela" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Contato Responsável</label>
+                                    <input type="text" class="form-control" id="sup-contato" placeholder="Ex: Roberto Santos">
+                                </div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Telefone / WhatsApp</label>
+                                    <input type="text" class="form-control" id="sup-telefone" placeholder="Ex: (11) 98765-4321">
+                                </div>
+                                <div class="form-group">
+                                    <label>E-mail de Contato</label>
+                                    <input type="email" class="form-control" id="sup-email" placeholder="Ex: comercial@fornecedor.com">
+                                </div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Tipo de Produto Fornecido</label>
+                                    <input type="text" class="form-control" id="sup-tipo" placeholder="Ex: Camisetas, Kits, Canecas">
+                                </div>
+                                <div class="form-group">
+                                    <label>Observações Gerais</label>
+                                    <input type="text" class="form-control" id="sup-obs" placeholder="Ex: Entrega rápida, 15 dias úteis">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn" style="margin-top:8px;">
+                                <i class="fas fa-plus"></i> Salvar Fornecedor no Banco
+                            </button>
+                        </form>
+
+                        <h4 style="font-family: var(--font-heading); font-size:14px; margin-bottom: 10px; color: var(--accent);">Fornecedores Ativos:</h4>
+                        <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                            <table id="suppliers-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Tipo de Produto</th>
+                                        <th>Contato / Tel</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dinâmico JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Controle de Pedidos de Compra / Encomendas Pendentes -->
+                    <div class="glass-card">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-clipboard-list"></i> Encomendas a Receber (Pedidos de Compra)</h3>
+                        <form id="form-create-order" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-glass); padding-bottom: 16px;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Selecionar Fornecedor</label>
+                                    <select class="form-control" id="order-supplier-select" required>
+                                        <!-- Dinâmico JS -->
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Selecionar Produto</label>
+                                    <select class="form-control" id="order-product-select" required>
+                                        <!-- Dinâmico JS -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Tamanho</label>
+                                    <select class="form-control" id="order-size" required>
+                                        <option value="P">P</option>
+                                        <option value="M">M</option>
+                                        <option value="G">G</option>
+                                        <option value="GG">GG</option>
+                                        <option value="Único">Único</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Quantidade Solicitada</label>
+                                    <input type="number" class="form-control" id="order-qty" value="10" min="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Previsão de Entrega</label>
+                                    <input type="date" class="form-control" id="order-date">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-accent" style="margin-top:8px;">
+                                <i class="fas fa-dolly"></i> Registrar Pedido de Compra
+                            </button>
+                        </form>
+
+                        <h4 style="font-family: var(--font-heading); font-size:14px; margin-bottom: 10px; color: var(--accent);">Pedidos Pendentes e Histórico:</h4>
+                        <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                            <table id="orders-table">
+                                <thead>
+                                    <tr>
+                                        <th>Produto (Tam)</th>
+                                        <th>Qtd</th>
+                                        <th>Fornecedor</th>
+                                        <th>Previsão</th>
+                                        <th>Status</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dinâmico JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                 </div>

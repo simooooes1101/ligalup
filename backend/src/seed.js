@@ -142,6 +142,34 @@ async function runSeed() {
       console.log('✔️ Parceiros e contratos de auditoria cadastrados.');
     }
 
+    // 8. Insere Fornecedores e Pedidos de Compra (Fase 2)
+    const supplierCount = await db.query('SELECT COUNT(*) FROM fornecedores');
+    if (parseInt(supplierCount.rows[0].count) === 0) {
+      console.log('🏭 Seed: Inserindo fornecedores oficiais...');
+      const insertSupplierQuery = `
+        INSERT INTO fornecedores (nome, contato_nome, telefone, email, tipo_produto, observacoes) VALUES
+        ('Confecções Estrela do Sul', 'Roberto Santos', '(11) 98765-4321', 'comercial@estreladosul.com.br', 'Camisetas e Moletons', 'Fornecedor principal de moletons de algodão premium.'),
+        ('Brindes e Copos Litoral', 'Cláudia Lima', '(13) 99122-3344', 'vendas@brindeslitoral.com.br', 'Canecas e Chopeiras', 'Fornecedor parceiro de canecas de alumínio com tirantes.')
+        RETURNING id;
+      `;
+      const insertedSuppliers = await db.query(insertSupplierQuery);
+      const supplier1Id = insertedSuppliers.rows[0].id;
+
+      // Busca o ID do Moletom LUP cadastrado
+      const productRes = await db.query("SELECT id FROM produtos WHERE nome = 'Moletom Oficial Lupus'");
+      const p1Id = productRes.rows[0]?.id;
+
+      if (p1Id) {
+        console.log('📦 Seed: Inserindo pedidos de compra pendentes...');
+        const insertOrderQuery = `
+          INSERT INTO pedidos_compra (fornecedor_id, produto_id, tamanho, quantidade, status, data_previsao) VALUES
+          ($1, $2, 'G', 20, 'Pendente', NOW() + INTERVAL '15 days');
+        `;
+        await db.query(insertOrderQuery, [supplier1Id, p1Id]);
+        console.log('✔️ Fornecedores e pedidos de compra de teste cadastrados.');
+      }
+    }
+
     console.log('🎉 Seed: Banco de dados populado com sucesso!');
   } catch (err) {
     console.error('❌ Erro durante a inserção de seeds:', err.message);

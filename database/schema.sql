@@ -159,3 +159,28 @@ CREATE TABLE logs_notificacoes (
     data_envio TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     erro_detalhe TEXT -- Armazena stack de erros do provedor (Resend/SendGrid)
 );
+
+-- 13. Fornecedores (Novidade Fase 2)
+CREATE TABLE fornecedores (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(255) NOT NULL,
+    contato_nome VARCHAR(255),
+    telefone VARCHAR(50),
+    email VARCHAR(255),
+    tipo_produto VARCHAR(255),
+    observacoes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. Pedidos de Compra / Encomendas Pendentes (Novidade Fase 2)
+CREATE TABLE pedidos_compra (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    fornecedor_id UUID NOT NULL REFERENCES fornecedores(id) ON DELETE CASCADE,
+    produto_id UUID NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
+    tamanho VARCHAR(20) NOT NULL,
+    quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+    status VARCHAR(50) NOT NULL DEFAULT 'Pendente', -- Pendente, Recebido, Cancelado
+    data_pedido TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    data_previsao TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
