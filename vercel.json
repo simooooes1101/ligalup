@@ -1,9 +1,8 @@
 {
   "version": 2,
-  "name": "atletica-lup",
   "builds": [
     {
-      "src": "index.html",
+      "src": "**/*",
       "use": "@vercel/static"
     }
   ],
