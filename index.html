@@ -49,6 +49,27 @@
                 </button>
             </form>
             <p class="login-footer-note">Acesso exclusivo para membros da Diretoria LUP</p>
+
+            <!-- Atalhos de demonstração rápida -->
+            <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">
+                <p style="font-size: 11px; color: rgba(255,255,255,0.35); text-align:center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.08em;">
+                    <i class="fas fa-flask"></i> Acesso Rápido (Demo)
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <button type="button" class="quick-login-btn" onclick="document.getElementById('login-email').value='presidencia@atleticalup.com.br'; document.getElementById('login-password').value='lup123_strategy';">
+                        <i class="fas fa-crown"></i> Presidência (Master)
+                    </button>
+                    <button type="button" class="quick-login-btn" onclick="document.getElementById('login-email').value='parcerias@atleticalup.com.br'; document.getElementById('login-password').value='lup123_strategy';">
+                        <i class="fas fa-handshake"></i> Diretoria de Parcerias
+                    </button>
+                    <button type="button" class="quick-login-btn" onclick="document.getElementById('login-email').value='juridico@atleticalup.com.br'; document.getElementById('login-password').value='lup123_strategy';">
+                        <i class="fas fa-file-contract"></i> Jurídico &amp; GED
+                    </button>
+                    <button type="button" class="quick-login-btn" onclick="document.getElementById('login-email').value='financeiro@atleticalup.com.br'; document.getElementById('login-password').value='lup123_strategy';">
+                        <i class="fas fa-wallet"></i> Tesouraria
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -87,6 +108,9 @@
                     <li class="nav-item nav-item-finance" data-target="mod-financeiro">
                         <i class="fas fa-wallet"></i> Tesouraria &amp; Caixa
                     </li>
+                    <li class="nav-item" data-target="mod-parcerias">
+                        <i class="fas fa-handshake"></i> Diretoria de Parcerias
+                    </li>
                     <li class="nav-item" data-target="mod-legal">
                         <i class="fas fa-file-contract"></i> Jurídico &amp; GED
                     </li>
@@ -117,19 +141,31 @@
             <!-- HEADER DA PÁGINA -->
             <header>
                 <div class="header-title">
-                    <h2>Controle Estratégico da Diretoria</h2>
-                    <p>SaaS de Backoffice Interno da Atlética Universitária LUP</p>
+                    <h2>Liga Universitária Pitágoras</h2>
+                    <p>Sistema de Gestão</p>
                 </div>
                 
                 <div class="header-actions">
-                    <span id="connection-status-badge" class="badge badge-secondary" style="padding: 8px 12px;">
-                        <i class="fas fa-circle-notch fa-spin"></i> Verificando...
+                    <span id="connection-status-badge" class="conn-icon-badge" title="Status de conexão com o banco de dados">
+                        <i class="fas fa-circle-notch fa-spin" id="conn-icon"></i>
                     </span>
-                    <div class="notification-bell">
+                    <div class="notification-bell" id="btn-notifications" title="Notificações">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge"></span>
+                        <span class="notification-badge" id="notif-badge" style="display:none;"></span>
                     </div>
                 </div>
+
+                <!-- DRAWER DE NOTIFICAÇÕES -->
+                <div id="notifications-drawer" class="notifications-drawer">
+                    <div class="notif-drawer-header">
+                        <span><i class="fas fa-bell"></i> Notificações</span>
+                        <button class="notif-close-btn" id="btn-close-notifications"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div id="notifications-list" class="notif-list">
+                        <!-- Dinâmico JS -->
+                    </div>
+                </div>
+                <div id="notifications-overlay" class="notifications-overlay"></div>
             </header>
             <!-- ========================================================== -->
             <!-- SEÇÃO 1: DASHBOARD EXECUTIVO -->
@@ -169,9 +205,12 @@
                 </div>
                 
                 <div class="glass-card">
-                    <h3 style="font-family: var(--font-heading); margin-bottom: 16px; color: var(--danger);"><i class="fas fa-shield-alt"></i> Painel de Auditoria de Notificações (Append-Only - RN-LOG-01)</h3>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom: 16px;">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 0; color: var(--danger);"><i class="fas fa-shield-alt"></i> Histórico de Notificações</h3>
+                        <span class="info-tooltip" data-tip="Registro de todas as notificações e alertas enviados pelo sistema. Este histórico é permanente e não pode ser apagado."><i class="fas fa-info-circle"></i></span>
+                    </div>
                     <p style="font-size:12px; color:var(--text-secondary); margin-bottom: 16px; border-left:3px solid var(--accent); padding-left:10px;">
-                        Esta tabela reflete a tabela <code>logs_notificacoes</code> do banco de dados. Qualquer tentativa de excluir ou alterar estes dados gerará uma violação de auditoria direta no banco.
+                        Registro de todas as notificações enviadas pelo sistema. Utilize este painel para acompanhar o status de entrega dos alertas automáticos.
                     </p>
                     <div class="table-container">
                         <table id="logs-table">
@@ -239,6 +278,7 @@
                                     <option value="Produtos">Produtos</option>
                                     <option value="Esportes">Esportes</option>
                                     <option value="Jurídico">Jurídico</option>
+                                    <option value="Parcerias">Parcerias</option>
                                     <option value="Relações Externas">Relações Externas</option>
                                 </select>
                             </div>
@@ -296,9 +336,12 @@
             <!-- ========================================================== -->
             <section id="mod-eventos" class="module-section">
                 <div class="glass-card" style="margin-bottom: 24px;">
-                    <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-tasks"></i> Kanban de Aprovação de Projetos (Regra RN-EV-01 & RN-EV-02)</h3>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-tasks"></i> Painel de Aprovação de Eventos</h3>
+                        <span class="info-tooltip" data-tip="Ao aprovar um evento, o sistema registra automaticamente o orçamento previsto como saída no caixa. Apenas a Tesouraria e a Presidência podem aprovar eventos."><i class="fas fa-info-circle"></i></span>
+                    </div>
                     <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">
-                        Arraste os cartões entre as colunas para mudar o estado de aprovação ou utilize os botões. A transição para 'Aprovado' dispara a geração atômica do lançamento financeiro (RN-EV-02), mas é restrita a cargos da Tesouraria (RN-EV-01).
+                        Arraste os cartões entre as colunas ou utilize os botões para gerenciar o andamento dos eventos.
                     </p>
                     
                     <div class="kanban-board">
@@ -383,13 +426,17 @@
                 <div class="glass-card" style="margin-bottom: 24px;">
                     <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-bullhorn"></i> Cronograma de Postagens por Evento</h3>
                     <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">
-                        Selecione um evento aprovado pela Tesouraria para gerenciar seu cronograma de postagens e campanhas publicitárias.
+                        Selecione um evento para gerenciar o cronograma de postagens e campanhas publicitárias.
                     </p>
-                    <div class="form-group" style="max-width: 400px; margin-bottom: 0;">
-                        <label>Selecione o Evento Aprovado</label>
-                        <select class="form-control" id="mkt-evento-select">
-                            <!-- Populado dinamicamente via JS com eventos aprovados -->
-                        </select>
+                    <div class="form-group" style="max-width: 460px; margin-bottom: 0; display:flex; align-items:flex-end; gap:10px;">
+                        <div style="flex:1;">
+                            <label style="display:flex; align-items:center; gap:6px;">Selecione o evento
+                                <span class="info-tooltip" data-tip="Somente eventos já aprovados pela Tesouraria ou Presidência aparecem nesta lista."><i class="fas fa-info-circle" style="font-size:13px; color:var(--accent);"></i></span>
+                            </label>
+                            <select class="form-control" id="mkt-evento-select">
+                                <!-- Populado dinamicamente via JS com eventos aprovados -->
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -439,11 +486,24 @@
 
                         <!-- Lista de Postagens Cadastradas -->
                         <div class="glass-card">
-                            <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-list-ul"></i> Postagens Agendadas</h3>
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom: 12px;">
+                                <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-list-ul"></i> Postagens Agendadas</h3>
+                                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                    <label style="font-size:11px; color:var(--text-secondary); margin:0;">De:</label>
+                                    <input type="date" id="mkt-filter-from" class="form-control" style="max-width:130px; font-size:11px; padding:4px 8px;">
+                                    <label style="font-size:11px; color:var(--text-secondary); margin:0;">Até:</label>
+                                    <input type="date" id="mkt-filter-to" class="form-control" style="max-width:130px; font-size:11px; padding:4px 8px;">
+                                    <select id="mkt-sort-select" class="form-control" style="max-width:160px; font-size:11px; padding:4px 8px;">
+                                        <option value="asc">Mais antigas primeiro</option>
+                                        <option value="desc" selected>Mais recentes primeiro</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="table-container" style="max-height: 380px; overflow-y:auto;">
                                 <table id="mkt-posts-table">
                                     <thead>
                                         <tr>
+                                            <th>Evento</th>
                                             <th>Canal / Tipo</th>
                                             <th>Data/Hora</th>
                                             <th>Descrição</th>
@@ -471,24 +531,113 @@
             <!-- SEÇÃO 3: PRODUTOS & ESTOQUE -->
             <!-- ========================================================== -->
             <section id="mod-produtos" class="module-section">
-                <div class="products-grid">
-                    
-                    <!-- Inventário e variantes -->
+                <!-- Navegação por Abas -->
+                <div class="tab-nav" style="margin-bottom: 24px;">
+                    <button class="tab-btn active" data-tab="prod-tab-estoque"><i class="fas fa-boxes"></i> Estoque</button>
+                    <button class="tab-btn" data-tab="prod-tab-produtos"><i class="fas fa-tag"></i> Produtos</button>
+                    <button class="tab-btn" data-tab="prod-tab-fornecedores"><i class="fas fa-truck-loading"></i> Fornecedores</button>
+                    <button class="tab-btn" data-tab="prod-tab-compras"><i class="fas fa-clipboard-list"></i> Compras</button>
+                </div>
+
+                <!-- ABA: ESTOQUE -->
+                <div id="prod-tab-estoque" class="tab-content active">
+                    <div class="products-grid">
+                        <div class="glass-card">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                                <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-boxes"></i> Inventário de Produtos</h3>
+                                <span class="info-tooltip" data-tip="Controle de estoque por produto e tamanho. O estoque é atualizado automaticamente a cada venda ou recebimento de pedido."><i class="fas fa-info-circle"></i></span>
+                            </div>
+                            <div class="table-container">
+                                <table id="inventory-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Produto</th>
+                                            <th>Tamanho</th>
+                                            <th>Custo</th>
+                                            <th>Venda</th>
+                                            <th>Estoque Atual</th>
+                                            <th>Operações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody><!-- Dinâmico JS --></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="glass-card">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                                <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-cash-register"></i> Registrar Venda</h3>
+                                <span class="info-tooltip" data-tip="Cada venda registrada desconta automaticamente do estoque disponível do produto e tamanho selecionados."><i class="fas fa-info-circle"></i></span>
+                            </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label>Selecionar Produto</label>
+                                <select class="form-control" id="dist-product-select"><!-- Dinâmico JS --></select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label>Variante (Tamanho / Estoque Disponível)</label>
+                                <select class="form-control" id="dist-size-select">
+                                    <option value="">Selecione primeiro o produto...</option>
+                                </select>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Quantidade</label>
+                                    <input type="number" class="form-control" id="dist-qty" value="1" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Nome do Comprador</label>
+                                    <input type="text" class="form-control" id="dist-buyer" placeholder="Ex: Rafael LUP">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-accent" id="btn-distribute-product" style="margin-top:12px; width:100%;">
+                                <i class="fas fa-shopping-cart"></i> Confirmar Venda
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA: CADASTRO DE PRODUTOS -->
+                <div id="prod-tab-produtos" class="tab-content">
                     <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-boxes"></i> Inventário Geral & Controle por Variante (C-02)</h3>
-                        <p style="font-size: 11px; color:var(--text-secondary); margin-bottom: 16px;">
-                            Modelagem com tabela <code>produto_variantes</code> separando estoque de tamanho de forma limpa.
-                        </p>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 16px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-tag"></i> Cadastro de Produtos</h3>
+                            <span class="info-tooltip" data-tip="Cadastre aqui os produtos vendidos pela Atlética. Para controle de tamanhos e estoque, acesse a aba Estoque."><i class="fas fa-info-circle"></i></span>
+                        </div>
+                        
+                        <form id="form-manage-product" style="margin-bottom: 24px; border-bottom: 1px solid var(--border-glass); padding-bottom: 16px;">
+                            <input type="hidden" id="prod-edit-id" value="">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Nome do Produto</label>
+                                    <input type="text" class="form-control" id="prod-nome" placeholder="Ex: Moletom Oficial" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Preço de Custo (R$)</label>
+                                    <input type="number" class="form-control" id="prod-custo" step="0.01" min="0" placeholder="0.00" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Preço de Venda (R$)</label>
+                                    <input type="number" class="form-control" id="prod-venda" step="0.01" min="0" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="submit" class="btn btn-accent" id="btn-save-product">
+                                    <i class="fas fa-save"></i> Salvar Produto
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="btn-cancel-product" style="display:none;">
+                                    Cancelar Edição
+                                </button>
+                            </div>
+                        </form>
+                        
                         <div class="table-container">
-                            <table id="inventory-table">
+                            <table id="produtos-list-table">
                                 <thead>
                                     <tr>
-                                        <th>Produto</th>
-                                        <th>Tamanho</th>
-                                        <th>Custo</th>
-                                        <th>Venda</th>
-                                        <th>Estoque Atual</th>
-                                        <th>Operações</th>
+                                        <th>Nome do Produto</th>
+                                        <th>Preço de Custo</th>
+                                        <th>Preço de Venda</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -497,48 +646,12 @@
                             </table>
                         </div>
                     </div>
-
-                    <!-- Distribuição de produtos (vendas) -->
-                    <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-cash-register"></i> Painel de Distribuição de Produtos (Vendas e RN-PROD-01)</h3>
-                        <p style="font-size:12px; color:var(--text-secondary); margin-bottom: 16px;">
-                            Vendas decrementam o estoque da variante. Tentar vender mais do que o estoque disponível causará uma violação de constraint <code>chk_estoque_positivo</code>!
-                        </p>
-                        
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <label>Selecionar Produto</label>
-                            <select class="form-control" id="dist-product-select">
-                                <!-- Dinâmico JS -->
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:12px;">
-                            <label>Variante (Tamanho / Estoque Disponível)</label>
-                            <select class="form-control" id="dist-size-select">
-                                <option value="">Selecione primeiro o produto...</option>
-                            </select>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Quantidade</label>
-                                <input type="number" class="form-control" id="dist-qty" value="1" min="1">
-                            </div>
-                            <div class="form-group">
-                                <label>Nome do Aluno / Comprador</label>
-                                <input type="text" class="form-control" id="dist-buyer" placeholder="Ex: Rafael LUP">
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-accent" id="btn-distribute-product" style="margin-top:12px; width:100%;">
-                            <i class="fas fa-shopping-cart"></i> Finalizar Distribuição (Inserir Venda)
-                        </button>
-                    </div>
                 </div>
 
-                <!-- NOVO ROW: FORNECEDORES E ENCOMENDAS (FASE 2) -->
-                <div class="products-grid" style="margin-top: 24px;">
-                    
-                    <!-- Cadastro e lista de Fornecedores -->
+                <!-- ABA: FORNECEDORES -->
+                <div id="prod-tab-fornecedores" class="tab-content">
                     <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-truck-loading"></i> Cadastro de Fornecedores Oficiais</h3>
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-truck-loading"></i> Cadastro de Fornecedores</h3>
                         <form id="form-create-supplier" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-glass); padding-bottom: 16px;">
                             <div class="form-grid">
                                 <div class="form-group">
@@ -566,7 +679,7 @@
                                     <input type="text" class="form-control" id="sup-tipo" placeholder="Ex: Camisetas, Kits, Canecas" required>
                                 </div>
                                 <div class="form-group">
-                                    <label>Categoria de Serviço / Produto</label>
+                                    <label>Categoria de Serviço</label>
                                     <select class="form-control" id="sup-categoria" required>
                                         <option value="Vestuário">Vestuário</option>
                                         <option value="Transporte">Transporte</option>
@@ -584,10 +697,9 @@
                                 <input type="text" class="form-control" id="sup-obs" placeholder="Ex: Entrega rápida, 15 dias úteis">
                             </div>
                             <button type="submit" class="btn" style="margin-top:8px;">
-                                <i class="fas fa-plus"></i> Salvar Fornecedor no Banco
+                                <i class="fas fa-plus"></i> Salvar Fornecedor
                             </button>
                         </form>
-
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
                             <h4 style="font-family: var(--font-heading); font-size:14px; margin:0; color: var(--accent);">Fornecedores Ativos:</h4>
                             <select class="form-control" id="supplier-filter-select" style="max-width: 150px; font-size:11px; height:auto; padding:4px 8px;">
@@ -602,7 +714,7 @@
                                 <option value="Outros">Outros</option>
                             </select>
                         </div>
-                        <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                        <div class="table-container">
                             <table id="suppliers-table">
                                 <thead>
                                     <tr>
@@ -612,39 +724,36 @@
                                         <th>Contato / Tel</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <!-- Dinâmico JS -->
-                                </tbody>
+                                <tbody><!-- Dinâmico JS --></tbody>
                             </table>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Controle de Pedidos de Compra / Encomendas Pendentes -->
+                <!-- ABA: COMPRAS -->
+                <div id="prod-tab-compras" class="tab-content">
                     <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-clipboard-list"></i> Encomendas a Receber (Pedidos de Compra)</h3>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 12px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-clipboard-list"></i> Pedidos de Compra</h3>
+                            <span class="info-tooltip" data-tip="Registre pedidos de compra para fornecedores. Ao marcar como Recebido, o estoque é atualizado automaticamente."><i class="fas fa-info-circle"></i></span>
+                        </div>
                         <form id="form-create-order" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-glass); padding-bottom: 16px;">
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label>Selecionar Fornecedor</label>
-                                    <select class="form-control" id="order-supplier-select" required>
-                                        <!-- Dinâmico JS -->
-                                    </select>
+                                    <select class="form-control" id="order-supplier-select" required><!-- Dinâmico JS --></select>
                                 </div>
                                 <div class="form-group">
                                     <label>Selecionar Produto</label>
-                                    <select class="form-control" id="order-product-select" required>
-                                        <!-- Dinâmico JS -->
-                                    </select>
+                                    <select class="form-control" id="order-product-select" required><!-- Dinâmico JS --></select>
                                 </div>
                             </div>
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label>Tamanho</label>
                                     <select class="form-control" id="order-size" required>
-                                        <option value="P">P</option>
-                                        <option value="M">M</option>
-                                        <option value="G">G</option>
-                                        <option value="GG">GG</option>
+                                        <option value="P">P</option><option value="M">M</option>
+                                        <option value="G">G</option><option value="GG">GG</option>
                                         <option value="Único">Único</option>
                                     </select>
                                 </div>
@@ -658,30 +767,22 @@
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-accent" style="margin-top:8px;">
-                                <i class="fas fa-dolly"></i> Registrar Pedido de Compra
+                                <i class="fas fa-dolly"></i> Registrar Pedido
                             </button>
                         </form>
-
-                        <h4 style="font-family: var(--font-heading); font-size:14px; margin-bottom: 10px; color: var(--accent);">Pedidos Pendentes e Histórico:</h4>
-                        <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                        <h4 style="font-family: var(--font-heading); font-size:14px; margin-bottom: 10px; color: var(--accent);">Pedidos e Histórico:</h4>
+                        <div class="table-container">
                             <table id="orders-table">
                                 <thead>
                                     <tr>
-                                        <th>Produto (Tam)</th>
-                                        <th>Qtd</th>
-                                        <th>Fornecedor</th>
-                                        <th>Previsão</th>
-                                        <th>Status</th>
-                                        <th>Ação</th>
+                                        <th>Produto (Tam)</th><th>Qtd</th><th>Fornecedor</th>
+                                        <th>Previsão</th><th>Status</th><th>Ação</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <!-- Dinâmico JS -->
-                                </tbody>
+                                <tbody><!-- Dinâmico JS --></tbody>
                             </table>
                         </div>
                     </div>
-
                 </div>
             </section>
 
@@ -689,14 +790,35 @@
             <!-- SEÇÃO 4: ESPORTES & ATLETAS -->
             <!-- ========================================================== -->
             <section id="mod-esportes" class="module-section">
+                <!-- Navegação por Abas -->
+                <div class="tab-nav" style="margin-bottom: 24px;">
+                    <button class="tab-btn active" data-tab="esp-tab-atletas"><i class="fas fa-running"></i> Atletas</button>
+                    <button class="tab-btn" data-tab="esp-tab-modalidades"><i class="fas fa-medal"></i> Modalidades</button>
+                </div>
+
+                <!-- ABA: ATLETAS -->
+                <div id="esp-tab-atletas" class="tab-content active">
                 <div class="sports-grid">
                     
                     <!-- Fichas de Atletas -->
                     <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-running"></i> Gestão de Elegibilidade Esportiva (RN-ESP-01)</h3>
-                        <p style="font-size:11px; color:var(--text-secondary); margin-bottom:16px;">
-                            Inscrições de atletas em competições são travadas no backend se a documentação não estiver aprovada pelo <b>Jurídico</b>.
-                        </p>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-running"></i> Relação de Atletas</h3>
+                            <span class="info-tooltip" data-tip="Lista todos os atletas inscritos. A validação dos documentos é realizada pelo Jurídico. Apenas atletas com status Aprovado podem competir."><i class="fas fa-info-circle"></i></span>
+                        </div>
+                        <!-- Filtros -->
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 12px;">
+                            <select class="form-control" id="athlete-filter-modality" style="max-width:180px; font-size:12px; padding:5px 8px;">
+                                <option value="">Todas as Modalidades</option>
+                                <!-- Dinâmico JS -->
+                            </select>
+                            <select class="form-control" id="athlete-filter-status" style="max-width:160px; font-size:12px; padding:5px 8px;">
+                                <option value="">Todos os Status</option>
+                                <option value="Aprovado">Aprovado</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Rejeitado">Rejeitado</option>
+                            </select>
+                        </div>
                         
                         <div class="table-container">
                             <table id="athletes-table">
@@ -717,10 +839,23 @@
                         </div>
                     </div>
 
-                    <!-- Cadastro de Atletas & Modalidades -->
+                    <!-- Cadastro de Atletas -->
                     <div class="glass-card" style="display:flex; flex-direction:column; gap:20px;">
                         <div>
                             <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-user-plus"></i> Inscrever Novo Atleta</h3>
+
+                            <!-- Passo a passo -->
+                            <div class="steps-guide" style="margin-bottom: 16px;">
+                                <p style="font-size:11px; font-weight:600; color:var(--accent); margin-bottom:8px;"><i class="fas fa-info-circle"></i> Antes de iniciar, confira os documentos do aluno (RG/CNH e Atestado de Matrícula).</p>
+                                <ol style="padding-left:16px; margin:0; display:flex; flex-direction:column; gap:4px;">
+                                    <li style="font-size:11px; color:var(--text-secondary);">Crie uma pasta no Google Drive <span style="font-style:italic;">(Liga LUP &gt; Atletas &gt; Modalidade &gt; Nome do Aluno)</span> e faça o upload dos documentos.</li>
+                                    <li style="font-size:11px; color:var(--text-secondary);">Preencha os dados do atleta abaixo (Nome, RA/Matrícula, Modalidade).</li>
+                                    <li style="font-size:11px; color:var(--text-secondary);">Copie o link da pasta do Google Drive e cole no campo indicado.</li>
+                                    <li style="font-size:11px; color:var(--text-secondary);">Clique em <b>Submeter com Documentos Pendentes</b>.</li>
+                                    <li style="font-size:11px; color:var(--text-secondary);">Na lista de atletas, clique em <b>Validar</b> somente após confirmar que todos os documentos estão na pasta.</li>
+                                </ol>
+                            </div>
+
                             <div class="form-group" style="margin-bottom:12px;">
                                 <label>Nome Completo do Aluno</label>
                                 <input type="text" class="form-control" id="enroll-name" placeholder="Ex: Felipe Silveira">
@@ -737,6 +872,10 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label>Link de Armazenamento (Google Drive)</label>
+                                <input type="url" class="form-control" id="enroll-drive-link" placeholder="https://drive.google.com/drive/folders/...">
+                            </div>
                             <button type="button" class="btn" id="btn-enroll-athlete" style="margin-top:12px; width: 100%;">
                                 <i class="fas fa-file-upload"></i> Submeter com Documentos Pendentes
                             </button>
@@ -744,134 +883,97 @@
                         
                         <hr style="border:0; border-top:1px solid var(--border-glass);">
                         
-                        <div>
-                            <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-plus-circle"></i> Criar Nova Modalidade</h3>
-                            <form id="form-create-modality">
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label>Nome da Modalidade</label>
-                                        <input type="text" class="form-control" id="mod-nome" placeholder="Ex: Futsal Feminino" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Coordenador Geral</label>
-                                        <select class="form-control" id="mod-coordenador" required>
-                                            <!-- Dinâmico JS -->
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-group" style="margin-top: 10px;">
-                                    <label>Categoria da Modalidade</label>
-                                    <select class="form-control" id="mod-categoria" required>
-                                        <option value="Coletivo">Coletivo</option>
-                                        <option value="Individual">Individual</option>
+                        <!-- Escalação por Evento (dentro da aba Atletas) -->
+                        <div class="glass-card" style="margin-top: 0;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                                <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-users-cog"></i> Montar Escalação por Evento</h3>
+                                <span class="info-tooltip" data-tip="Selecione um evento de Competição já aprovado e uma modalidade para definir os atletas escalados. Só atletas com documentação Aprovada podem ser incluídos."><i class="fas fa-info-circle"></i></span>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">
+                                Escolha um evento de Competição aprovado e uma modalidade para montar a delegação esportiva.
+                            </p>
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label>Evento (Competição Aprovada)</label>
+                                    <select class="form-control" id="roster-evento-select">
+                                        <!-- Populado com eventos aprovados do tipo Competição -->
                                     </select>
                                 </div>
-                                <button type="submit" class="btn btn-accent" style="margin-top:12px; width: 100%;">
-                                    <i class="fas fa-save"></i> Cadastrar Modalidade
-                                </button>
-                            </form>
-                        </div>
-                        
-                        <hr style="border:0; border-top:1px solid var(--border-glass);">
-                        
-                        <div>
-                            <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-medal"></i> Modalidades Oficiais Ativas</h3>
-                            <div class="table-container">
-                                <table id="modalities-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Modalidade</th>
-                                            <th>Categoria</th>
-                                            <th>Coordenador</th>
-                                            <th>Atletas</th>
-                                            <th>Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Dinâmico JS -->
-                                    </tbody>
-                                </table>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label>Modalidade Desportiva</label>
+                                    <select class="form-control" id="roster-mod-select">
+                                        <!-- Populado com modalidades -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="roster-builder-interface" style="display: none;">
+                                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px;">
+                                    <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
+                                        <h4 style="font-family: var(--font-heading); margin-bottom: 12px; font-size: 15px;"><i class="fas fa-list"></i> Atletas Disponíveis</h4>
+                                        <div id="roster-available-athletes" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;"><!-- Dinâmico JS --></div>
+                                    </div>
+                                    <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
+                                        <h4 style="font-family: var(--font-heading); margin-bottom: 12px; font-size: 15px;"><i class="fas fa-clipboard-check"></i> Escalação Montada</h4>
+                                        <div id="roster-current-athletes" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;"><!-- Dinâmico JS --></div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; justify-content: flex-end; gap:12px;">
+                                    <button type="button" class="btn" id="btn-clear-roster" style="background: rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);">Limpar Seleção</button>
+                                    <button type="button" class="btn btn-accent" id="btn-save-roster"><i class="fas fa-save"></i> Salvar Escalação Oficial</button>
+                                </div>
+                            </div>
+                            <div id="roster-saved-container" style="margin-top: 24px; display: none;">
+                                <h4 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-history"></i> Escalação Salva do Evento</h4>
+                                <div class="table-container">
+                                    <table id="roster-saved-table">
+                                        <thead><tr><th>Atleta</th><th>RA / Matrícula</th><th>Modalidade</th><th>Função</th><th>Observação</th></tr></thead>
+                                        <tbody><!-- Dinâmico JS --></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="roster-no-selection" class="glass-card" style="text-align: center; padding: 40px; background: rgba(0,0,0,0.1); border: 1px dashed var(--border-glass);">
+                                <i class="fas fa-users-cog" style="font-size: 40px; color: var(--text-secondary); opacity: 0.3; margin-bottom: 12px;"></i>
+                                <p style="color: var(--text-secondary); margin-bottom: 0;">Selecione o Evento e a Modalidade acima para montar a delegação esportiva.</p>
                             </div>
                         </div>
                     </div>
-
                 </div>
+                </div><!-- fim esp-tab-atletas -->
 
-                <!-- Nova seção: Escalação por Evento -->
-                <div class="glass-card" style="margin-top: 24px;">
-                    <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-users-cog"></i> Montar Escalação por Evento</h3>
-                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">
-                        Escolha um evento esportivo aprovado e uma modalidade para gerenciar a lista de atletas escalados.
-                    </p>
-                    
-                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Evento (Competição Aprovada)</label>
-                            <select class="form-control" id="roster-evento-select">
-                                <!-- Populado com eventos aprovados do tipo Competição -->
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Modalidade Desportiva</label>
-                            <select class="form-control" id="roster-mod-select">
-                                <!-- Populado com modalidades -->
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="roster-builder-interface" style="display: none;">
-                        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px;">
-                            <!-- Coluna Esquerda: Atletas Disponíveis -->
-                            <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
-                                <h4 style="font-family: var(--font-heading); margin-bottom: 12px; font-size: 15px;"><i class="fas fa-list"></i> Atletas Disponíveis</h4>
-                                <div id="roster-available-athletes" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
-                                    <!-- Dinâmico JS -->
+                <!-- ABA: MODALIDADES -->
+                <div id="esp-tab-modalidades" class="tab-content">
+                    <div class="glass-card">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-plus-circle"></i> Cadastrar Nova Modalidade</h3>
+                        <form id="form-create-modality">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Nome da Modalidade</label>
+                                    <input type="text" class="form-control" id="mod-nome" placeholder="Ex: Futsal Feminino" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Coordenador Geral</label>
+                                    <select class="form-control" id="mod-coordenador" required><!-- Dinâmico JS --></select>
                                 </div>
                             </div>
-                            
-                            <!-- Coluna Direita: Escalação Atual (Pendente) -->
-                            <div class="glass-card" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-glass); padding: 16px;">
-                                <h4 style="font-family: var(--font-heading); margin-bottom: 12px; font-size: 15px;"><i class="fas fa-clipboard-check"></i> Escalação Montada</h4>
-                                <div id="roster-current-athletes" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
-                                    <!-- Dinâmico JS -->
-                                </div>
+                            <div class="form-group" style="margin-top: 10px;">
+                                <label>Categoria da Modalidade</label>
+                                <select class="form-control" id="mod-categoria" required>
+                                    <option value="Coletivo">Coletivo</option>
+                                    <option value="Individual">Individual</option>
+                                </select>
                             </div>
-                        </div>
-                        
-                        <div style="display:flex; justify-content: flex-end; gap:12px;">
-                            <button type="button" class="btn" id="btn-clear-roster" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">
-                                Limpar Seleção
+                            <button type="submit" class="btn btn-accent" style="margin-top:12px; width: 100%;">
+                                <i class="fas fa-save"></i> Cadastrar Modalidade
                             </button>
-                            <button type="button" class="btn btn-accent" id="btn-save-roster">
-                                <i class="fas fa-save"></i> Salvar Escalação Oficial
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Tabela de Escalações Salvas -->
-                    <div id="roster-saved-container" style="margin-top: 24px; display: none;">
-                        <h4 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-history"></i> Escalação Salva do Evento</h4>
+                        </form>
+                        <hr style="border:0; border-top:1px solid var(--border-glass); margin: 20px 0;">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px;"><i class="fas fa-medal"></i> Modalidades Ativas</h3>
                         <div class="table-container">
-                            <table id="roster-saved-table">
-                                <thead>
-                                    <tr>
-                                        <th>Atleta</th>
-                                        <th>RA / Matrícula</th>
-                                        <th>Modalidade</th>
-                                        <th>Função</th>
-                                        <th>Observação</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Dinâmico JS -->
-                                </tbody>
+                            <table id="modalities-table">
+                                <thead><tr><th>Modalidade</th><th>Categoria</th><th>Coordenador</th><th>Atletas</th><th>Ações</th></tr></thead>
+                                <tbody><!-- Dinâmico JS --></tbody>
                             </table>
                         </div>
-                    </div>
-                    
-                    <div id="roster-no-selection" class="glass-card" style="text-align: center; padding: 40px; background: rgba(0,0,0,0.1); border: 1px dashed var(--border-glass);">
-                        <i class="fas fa-users-cog" style="font-size: 40px; color: var(--text-secondary); opacity: 0.3; margin-bottom: 12px;"></i>
-                        <p style="color: var(--text-secondary); margin-bottom: 0;">Selecione o Evento e a Modalidade no topo para montar a delegação esportiva.</p>
                     </div>
                 </div>
             </section>
@@ -940,9 +1042,12 @@
 
                     <!-- Ledger Table -->
                     <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-book"></i> Livro de Lançamentos Financeiros (Imutabilidade - RN-FIN-01)</h3>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-book"></i> Livro de Lançamentos</h3>
+                            <span class="info-tooltip" data-tip="Registro de todas as entradas e saídas financeiras. Itens que foram conciliados não podem ser alterados ou excluídos."><i class="fas fa-info-circle"></i></span>
+                        </div>
                         <p style="font-size:11px; color:var(--text-secondary); margin-bottom: 16px;">
-                            A conciliação valida as contas e ativa o <b>Lock de Imutabilidade</b> no banco. Modificações em itens conciliados serão bloqueadas por triggers (RN-FIN-01).
+                            Registro de todas as entradas e saídas financeiras. Utilize a conciliação para confirmar os lançamentos.
                         </p>
                         <div class="table-container">
                             <table id="ledger-table">
@@ -1097,80 +1202,152 @@
             </section>
 
             <!-- ========================================================== -->
-            <!-- SEÇÃO 6: JURÍDICO & GED -->
             <!-- ========================================================== -->
-            <section id="mod-legal" class="module-section">
+            <!-- SEÇÃO 6: DIRETORIA DE PARCERIAS -->
+            <!-- ========================================================== -->
+            <section id="mod-parcerias" class="module-section">
                 <div class="partners-grid">
-                    
-                    <!-- CRM Patrocínio -->
+                    <!-- Formulário de Cadastro de Parceria -->
                     <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 8px;"><i class="fas fa-handshake"></i> CRM Parcerias Acadêmicas (RN-JUR-01)</h3>
-                        <p style="font-size: 11px; color:var(--text-secondary); margin-bottom:16px;">
-                            A ativação de contratos e patrocínios ('Contrato Ativo') é bloqueada pela trigger <code>trg_validar_parceria_ativa</code> se não houver um contrato com link ativo cadastrado no GED da Atlética.
-                        </p>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 16px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-plus-circle"></i> Cadastrar Nova Parceria</h3>
+                            <span class="info-tooltip" data-tip="Registre aqui parceiros e patrocinadores. O Jurídico será notificado para avaliar a proposta e redigir o contrato."><i class="fas fa-info-circle"></i></span>
+                        </div>
+                        <form id="form-create-partner">
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label>Nome da Empresa / Parceiro</label>
+                                <input type="text" class="form-control" id="partner-nome" placeholder="Ex: RedBull Brasil" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label>Tipo de Parceria</label>
+                                <input type="text" class="form-control" id="partner-tipo" placeholder="Ex: Patrocínio Financeiro, Fornecimento de Produtos" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label>Link da Proposta (Google Drive)</label>
+                                <input type="url" class="form-control" id="partner-proposta-url" placeholder="https://drive.google.com/.../view" required>
+                            </div>
+                            <button type="submit" class="btn btn-accent" style="margin-top:8px; width:100%;">
+                                <i class="fas fa-save"></i> Enviar Proposta para o Jurídico
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Lista de Parcerias -->
+                    <div class="glass-card">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 16px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-handshake"></i> Gestão de Parcerias</h3>
+                            <span class="info-tooltip" data-tip="Para ativar uma parceria (Contrato Ativo), o Jurídico precisa vincular um contrato assinado no GED."><i class="fas fa-info-circle"></i></span>
+                        </div>
                         <div class="list-group" id="partners-list">
                             <!-- Dinâmico JS -->
                         </div>
                     </div>
+                </div>
+            </section>
 
-                    <!-- Repositorio GED -->
+            <!-- ========================================================== -->
+            <!-- SEÇÃO 7: JURÍDICO & GED -->
+            <!-- ========================================================== -->
+            <section id="mod-legal" class="module-section">
+                <!-- Navegação por Abas -->
+                <div class="tab-nav" style="margin-bottom: 24px;">
+                    <button class="tab-btn active" data-tab="jur-tab-auditoria"><i class="fas fa-gavel"></i> Notificações de Parcerias</button>
+                    <button class="tab-btn" data-tab="jur-tab-ged"><i class="fas fa-folder-open"></i> GED — Documentos</button>
+                </div>
+
+                <!-- ABA: NOTIFICAÇÕES DE PARCERIAS (Auditoria) -->
+                <div id="jur-tab-auditoria" class="tab-content active">
                     <div class="glass-card">
-                        <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-folder-open"></i> GED — Repositório de Documentos de Auditoria</h3>
-                        <form id="form-upload-doc">
-                            <div class="form-group" style="margin-bottom:12px;">
-                                <label>Título do Documento</label>
-                                <input type="text" class="form-control" id="doc-title" placeholder="Ex: Contrato Assinado Lupus Fest 2026" required>
-                            </div>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label>Tipo de Documento</label>
-                                    <select class="form-control" id="doc-type">
-                                        <option value="Contrato">Contrato</option>
-                                        <option value="Termo de Parceria">Termo de Parceria</option>
-                                        <option value="Ofício">Ofício</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Parceiro Associado</label>
-                                    <select class="form-control" id="doc-partner-select">
-                                        <!-- Dinâmico JS -->
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label>Link de Armazenamento (Google Drive) - C-07</label>
-                                    <input type="url" class="form-control" id="doc-url" placeholder="https://drive.google.com/.../view" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Data de Vencimento</label>
-                                    <input type="date" class="form-control" id="doc-expiry">
-                                </div>
-                            </div>
-                            <button type="button" class="btn" id="btn-add-document" style="margin-top:12px; width:100%;">
-                                <i class="fas fa-cloud-upload-alt"></i> Vincular e Salvar no GED
-                            </button>
-                        </form>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 16px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-gavel"></i> Parcerias Aguardando Contrato</h3>
+                            <span class="info-tooltip" data-tip="Analise a proposta de parceria e, quando o contrato for assinado, vincule-o no GED para aprovar."><i class="fas fa-info-circle"></i></span>
+                        </div>
+                        <div class="table-container">
+                            <table id="auditoria-parcerias-table">
+                                <thead>
+                                    <tr>
+                                        <th>Parceiro</th>
+                                        <th>Tipo de Parceria</th>
+                                        <th>Proposta</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dinâmico JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <div class="glass-card" style="margin-top:24px;">
-                    <h3 style="font-family: var(--font-heading); margin-bottom: 16px;"><i class="fas fa-database"></i> Tabela documentos_contratos (GED Geral)</h3>
-                    <div class="table-container">
-                        <table id="ged-table">
-                            <thead>
-                                <tr>
-                                    <th>Título</th>
-                                    <th>Tipo</th>
-                                    <th>Parceiro Comercial</th>
-                                    <th>Link GED (Armazenamento Nuvem)</th>
-                                    <th>Vencimento</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Dinâmico JS -->
-                            </tbody>
-                        </table>
+                <!-- ABA: GED -->
+                <div id="jur-tab-ged" class="tab-content">
+                    <div class="partners-grid">
+                        <!-- Form upload de documento -->
+                        <div class="glass-card">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 16px;">
+                                <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-cloud-upload-alt"></i> Vincular Documento</h3>
+                                <span class="info-tooltip" data-tip="Vincular um 'Contrato' a uma parceria alterará automaticamente o seu status para 'Contrato Ativo'."><i class="fas fa-info-circle"></i></span>
+                            </div>
+                            <form id="form-upload-doc">
+                                <div class="form-group" style="margin-bottom:12px;">
+                                    <label>Título do Documento</label>
+                                    <input type="text" class="form-control" id="doc-title" placeholder="Ex: Contrato Assinado LUP Fest 2026" required>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Tipo de Documento</label>
+                                        <select class="form-control" id="doc-type">
+                                            <option value="Contrato">Contrato</option>
+                                            <option value="Termo de Parceria">Termo de Parceria</option>
+                                            <option value="Ofício">Ofício</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Parceiro Associado</label>
+                                        <select class="form-control" id="doc-partner-select">
+                                            <!-- Dinâmico JS — todas as parcerias cadastradas -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Link de Armazenamento (Google Drive)</label>
+                                        <input type="url" class="form-control" id="doc-url" placeholder="https://drive.google.com/.../view" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Data de Vencimento</label>
+                                        <input type="date" class="form-control" id="doc-expiry">
+                                    </div>
+                                </div>
+                                <button type="button" class="btn" id="btn-add-document" style="margin-top:12px; width:100%;">
+                                    <i class="fas fa-cloud-upload-alt"></i> Vincular e Salvar no GED
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Tabela GED -->
+                        <div class="glass-card">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 16px;">
+                                <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-database"></i> Repositório de Documentos</h3>
+                                <span class="info-tooltip" data-tip="Todos os documentos vinculados a parcerias estão listados aqui. Certifique-se de que os links do Google Drive estão acessíveis."><i class="fas fa-info-circle"></i></span>
+                            </div>
+                            <div class="table-container">
+                                <table id="ged-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Título</th>
+                                            <th>Tipo</th>
+                                            <th>Parceiro</th>
+                                            <th>Link (Google Drive)</th>
+                                            <th>Vencimento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody><!-- Dinâmico JS --></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -1198,6 +1375,51 @@
             <div class="error-modal-footer">
                 <button class="btn btn-accent error-btn-ok" id="btn-close-error">
                     <i class="fas fa-check"></i> Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALHES DE PARCERIA (Jurídico) -->
+    <div class="trigger-error-overlay" id="partner-detail-overlay">
+        <div class="partner-detail-modal">
+            <div style="padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-family: var(--font-heading); margin: 0; color: var(--text-primary); font-size: 18px;"><i class="fas fa-handshake"></i> Detalhes da Parceria</h3>
+                <button id="btn-close-partner-detail" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="error-modal-body" style="padding: 20px 24px; text-align: left;">
+                <input type="hidden" id="detail-partner-id">
+                
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Nome da Empresa / Parceiro</label>
+                    <input type="text" class="form-control" id="detail-partner-name" disabled style="background: rgba(255,255,255,0.05); color: var(--text-muted); cursor: not-allowed;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tipo de Parceria</label>
+                    <input type="text" class="form-control" id="detail-partner-type" disabled style="background: rgba(255,255,255,0.05); color: var(--text-muted); cursor: not-allowed;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Proposta de Parceria (Google Drive)</label>
+                    <div id="detail-partner-proposal-container" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 10px 12px; font-size: 13px; word-break: break-all;">
+                        <!-- Clicável -->
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Status da Parceria</label>
+                    <select class="form-control" id="detail-partner-status">
+                        <!-- Opções dinâmicas -->
+                    </select>
+                </div>
+            </div>
+            <div class="error-modal-footer" style="padding: 0 24px 24px; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-secondary" id="btn-cancel-partner-detail" style="background: rgba(255,255,255,0.08); color: var(--text-primary); font-size: 13px; padding: 8px 16px;">
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" id="btn-save-partner-detail" style="background: var(--primary); color: white; font-size: 13px; padding: 8px 16px;">
+                    <i class="fas fa-save"></i> Salvar Alterações
                 </button>
             </div>
         </div>

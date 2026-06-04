@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'u3', nome: 'Mariana do Mkt', email: 'marketing@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Marketing', status: true },
             { id: 'u4', nome: 'Guilherme do Esporte', email: 'esportes@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Esportes', status: true },
             { id: 'u5', nome: 'Lucas do Jurídico', email: 'juridico@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Jurídico', status: true },
-            { id: 'u6', nome: 'Amanda Apoio', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true }
+            { id: 'u6', nome: 'Amanda Apoio', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true },
+            { id: 'u7', nome: 'Rafaela de Parcerias', email: 'parcerias@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Parcerias', status: true }
         ],
         eventos: [
             { id: 'e1', nome: 'Cervejada de Integração LUP', data_evento: '2026-06-12 18:00', local: 'Arena LUP', orcamento_previsto: 12000.00, status_aprovacao: 'Aprovado', tipo: 'Social', valor_taxa_base: 80.00, criador_id: 'u3' },
@@ -64,9 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
             { id: 'lf3', tipo: 'Saída', categoria: 'Logística Evento', valor: 12000.00, data_competencia: '2026-05-20', status_conciliacao: false, evento_id: 'e1', produto_id: null }
         ],
         parceiros_patrocinadores: [
-            { id: 'par1', nome_empresa: 'RedBull Brasil', tipo_parceria: 'Fornecimento de Energéticos', status_funil: 'Negociação' },
-            { id: 'par2', nome_empresa: 'Cervejaria Local', tipo_parceria: 'Patrocínio Financeiro LUP Fest', status_funil: 'Contrato Ativo' },
-            { id: 'par3', nome_empresa: 'Marca de Roupas Esportivas', tipo_parceria: 'Uniformes das Delegações', status_funil: 'Prospecção' }
+            { id: 'par1', nome_empresa: 'RedBull Brasil', tipo_parceria: 'Fornecimento de Energéticos', status_funil: 'Negociação', link_proposta_drive: 'https://drive.google.com/redbull-prop' },
+            { id: 'par2', nome_empresa: 'Cervejaria Local', tipo_parceria: 'Patrocínio Financeiro LUP Fest', status_funil: 'Contrato Ativo', link_proposta_drive: 'https://drive.google.com/cerveja-prop' },
+            { id: 'par3', nome_empresa: 'Marca de Roupas Esportivas', tipo_parceria: 'Uniformes das Delegações', status_funil: 'Aguardando Contrato', link_proposta_drive: 'https://drive.google.com/roupas-prop' }
         ],
         documentos_contratos: [
             { id: 'dc1', titulo: 'Termo de Parceria RedBull 2026', tipo_documento: 'Termo de Parceria', arquivo_url: '', data_vencimento: '2026-12-31', parceiro_id: 'par1' },
@@ -113,7 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'mod-produtos':   ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Produtos'],
         'mod-esportes':   ['Presidência', 'Vice-Presidência', 'Esportes', 'Jurídico'],
         'mod-financeiro': ['Presidência', 'Vice-Presidência', 'Tesouraria'],
-        'mod-legal':      ['Presidência', 'Vice-Presidência', 'Jurídico', 'Relações Externas'],
+        'mod-parcerias':  ['Presidência', 'Vice-Presidência', 'Parcerias', 'Relações Externas'],
+        'mod-legal':      ['Presidência', 'Vice-Presidência', 'Jurídico'],
     };
 
     function canWrite(moduleId) {
@@ -838,14 +840,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Aplica visibilidade do menu financeiro ---
     function applyNavPermissions() {
+        if (!currentUser) return;
+        const isMaster = currentUser.cargo === 'Master';
+        const dir = currentUser.diretoria;
+
+        // Reset visibility of conditional nav items
+        const parceriasNavItem = document.querySelector('[data-target="mod-parcerias"]');
+        const legalNavItem     = document.querySelector('[data-target="mod-legal"]');
+        if (parceriasNavItem) parceriasNavItem.style.display = '';
+        if (legalNavItem)     legalNavItem.style.display = '';
+
+        // Financeiro: somente Presidência, Vice-Presidência, Tesouraria e Master
         const financeItem = document.querySelector('.nav-item-finance');
         if (financeItem) {
             financeItem.style.display = canViewFinance() ? '' : 'none';
         }
-        // Oculta Gestão de Acessos para não-Master
+
+        // Gestão de Acessos: apenas Master
         document.querySelectorAll('[data-requires-master]').forEach(item => {
-            item.style.display = (currentUser && currentUser.cargo === 'Master') ? '' : 'none';
+            item.style.display = isMaster ? '' : 'none';
         });
+
+        if (!isMaster) {
+            // Jurídico: NÃO vê mod-parcerias no menu
+            if (dir === 'Jurídico') {
+                if (parceriasNavItem) parceriasNavItem.style.display = 'none';
+            }
+            // Parcerias: NÃO vê mod-legal no menu
+            if (dir === 'Parcerias') {
+                if (legalNavItem) legalNavItem.style.display = 'none';
+            }
+        }
     }
 
     // --- Aplica modo somente leitura aos módulos ---
@@ -881,15 +906,14 @@ document.addEventListener('DOMContentLoaded', () => {
         logSQL(`LOGIN: Usuário '${user.nome}' autenticado. cargo=${user.cargo}, diretoria=${user.diretoria}`, 'trigger');
         refreshAllUI();
 
-        // Se financeiro está oculto e está ativo, muda para dashboard
-        if (!canViewFinance()) {
-            const activeItem = document.querySelector('.nav-item.active');
-            if (activeItem && activeItem.getAttribute('data-target') === 'mod-financeiro') {
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                document.querySelectorAll('.module-section').forEach(s => s.classList.remove('active'));
-                document.querySelector('[data-target="mod-dashboard"]').classList.add('active');
-                document.getElementById('mod-dashboard').classList.add('active');
-            }
+        // Sempre resetar para a aba "Dashboard Executivo" ao fazer login para evitar herdar telas anteriores
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.module-section').forEach(s => s.classList.remove('active'));
+        
+        const dashboardNavItem = document.querySelector('[data-target="mod-dashboard"]');
+        if (dashboardNavItem) {
+            dashboardNavItem.classList.add('active');
+            document.getElementById('mod-dashboard').classList.add('active');
         }
     }
 
@@ -1246,8 +1270,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 DB_Engine.updateEventStatus(evtId, status);
             });
         });
-
-        });
     }
 
     // Toggle Taxa Base visibility based on Event Type
@@ -1353,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const posts = DB.cronograma_postagens.filter(p => p.evento_id === selectedMarketingEventId);
             
             if (posts.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">Nenhuma postagem agendada para este evento.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary);">Nenhuma postagem agendada para este evento.</td></tr>';
             } else {
                 posts.forEach(post => {
                     const tr = document.createElement('tr');
@@ -1367,7 +1389,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         statusBadge = `<span class="badge badge-warning"><i class="fas fa-clock"></i> Agendado</span>`;
                     }
 
+                    const evento = DB.eventos.find(e => e.id === post.evento_id);
+                    const eventoNome = evento ? evento.nome : '—';
+
                     tr.innerHTML = `
+                        <td><b>${eventoNome}</b></td>
                         <td><b>${post.plataforma}</b> <span class="badge badge-secondary" style="font-size:10px;">${post.tipo_conteudo}</span></td>
                         <td><code>${post.data_publicacao}</code></td>
                         <td>${post.descricao}</td>
@@ -1440,6 +1466,58 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tabela de Inventário
         const inventoryTbody = document.querySelector('#inventory-table tbody');
         inventoryTbody.innerHTML = '';
+        
+        // Tabela de Cadastro de Produtos (Aba Produtos)
+        const productsTbody = document.querySelector('#produtos-list-table tbody');
+        if (productsTbody) {
+            productsTbody.innerHTML = '';
+            DB.produtos.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.innerHTML = `
+                    <td><b>${p.nome}</b></td>
+                    <td>R$ ${p.preco_custo.toFixed(2)}</td>
+                    <td>R$ ${p.preco_venda.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-delete-product" data-prod-id="${p.id}" style="padding:4px 8px; font-size:11px; background:rgba(239,68,68,0.1); color:#ef4444;">
+                            <i class="fas fa-trash-alt"></i> Excluir
+                        </button>
+                    </td>
+                `;
+                // Ao clicar na linha (mas não no botão de excluir), preenche o formulário
+                tr.addEventListener('click', (e) => {
+                    if (e.target.closest('.btn-delete-product')) return;
+                    
+                    document.getElementById('prod-edit-id').value = p.id;
+                    document.getElementById('prod-nome').value = p.nome;
+                    document.getElementById('prod-custo').value = p.preco_custo.toFixed(2);
+                    document.getElementById('prod-venda').value = p.preco_venda.toFixed(2);
+                    
+                    const btnSave = document.getElementById('btn-save-product');
+                    const btnCancel = document.getElementById('btn-cancel-product');
+                    if (btnSave) btnSave.innerHTML = '<i class="fas fa-save"></i> Atualizar Produto';
+                    if (btnCancel) btnCancel.style.display = 'inline-block';
+                });
+                
+                productsTbody.appendChild(tr);
+            });
+
+            // Delete buttons
+            productsTbody.querySelectorAll('.btn-delete-product').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const pId = btn.getAttribute('data-prod-id');
+                    if (confirm('Tem certeza que deseja excluir este produto?')) {
+                        const idx = DB.produtos.findIndex(p => p.id === pId);
+                        if (idx !== -1) {
+                            DB.produtos.splice(idx, 1);
+                            logSQL(`DELETE FROM produtos WHERE id = '${pId}';`, 'query');
+                            refreshAllUI();
+                        }
+                    }
+                });
+            });
+        }
+
         
         DB.produto_variantes.forEach(variant => {
             const product = DB.produtos.find(p => p.id === variant.produto_id);
@@ -1541,6 +1619,56 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshAllUI();
         }
     });
+
+    // Event Handler: Form Manage Product
+    const formManageProduct = document.getElementById('form-manage-product');
+    const btnCancelProduct = document.getElementById('btn-cancel-product');
+
+    if (formManageProduct) {
+        formManageProduct.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('prod-edit-id').value;
+            const nome = document.getElementById('prod-nome').value;
+            const custo = parseFloat(document.getElementById('prod-custo').value) || 0;
+            const venda = parseFloat(document.getElementById('prod-venda').value) || 0;
+
+            if (id) {
+                // Update
+                const prod = DB.produtos.find(p => p.id === id);
+                if (prod) {
+                    prod.nome = nome;
+                    prod.preco_custo = custo;
+                    prod.preco_venda = venda;
+                    logSQL(`UPDATE produtos SET nome='${nome}', preco_custo=${custo}, preco_venda=${venda} WHERE id='${id}';`, 'query');
+                }
+            } else {
+                // Insert
+                const newId = 'p_' + Date.now();
+                DB.produtos.push({
+                    id: newId,
+                    nome: nome,
+                    preco_custo: custo,
+                    preco_venda: venda
+                });
+                logSQL(`INSERT INTO produtos (nome, preco_custo, preco_venda) VALUES ('${nome}', ${custo}, ${venda});`, 'query');
+            }
+
+            formManageProduct.reset();
+            document.getElementById('prod-edit-id').value = '';
+            document.getElementById('btn-save-product').innerHTML = '<i class="fas fa-save"></i> Salvar Produto';
+            if (btnCancelProduct) btnCancelProduct.style.display = 'none';
+            refreshAllUI();
+        });
+    }
+
+    if (btnCancelProduct) {
+        btnCancelProduct.addEventListener('click', () => {
+            if (formManageProduct) formManageProduct.reset();
+            document.getElementById('prod-edit-id').value = '';
+            document.getElementById('btn-save-product').innerHTML = '<i class="fas fa-save"></i> Salvar Produto';
+            btnCancelProduct.style.display = 'none';
+        });
+    }
 
     // RENDER 4: SPORTS & ATHLETES (Fase 4)
     function renderSportsModule() {
@@ -2373,15 +2501,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // RENDER 6: PARTNERS & LEGAL (GED Repositories)
-    function renderLegalModule() {
-        // Render Partner list cards
+    function renderParceriasModule() {
         const partnersList = document.getElementById('partners-list');
+        if (!partnersList) return;
         partnersList.innerHTML = '';
         
         DB.parceiros_patrocinadores.forEach(partner => {
-            const contracts = DB.documentos_contratos.filter(dc => dc.parceiro_id === partner.id);
-            const activeContract = contracts.find(c => c.arquivo_url && c.arquivo_url.trim() !== '');
-
             const card = document.createElement('div');
             card.className = 'list-group-item';
             
@@ -2390,37 +2515,107 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (partner.status_funil === 'Arquivado') statusBadge = '<span class="badge badge-secondary">ARQUIVADO</span>';
             else statusBadge = `<span class="badge badge-warning">${partner.status_funil}</span>`;
 
+            const contrato = DB.documentos_contratos.find(d => d.parceiro_id === partner.id && d.tipo_documento === 'Contrato');
+
             card.innerHTML = `
                 <div style="flex-grow:1;">
                     <div class="list-group-item-title">${partner.nome_empresa}</div>
                     <div class="list-group-item-desc">🏷️ Tipo: ${partner.tipo_parceria}</div>
-                    <div style="margin-top:8px;">
-                        ${activeContract ? `
-                            <span style="font-size:11px; color:var(--success);"><i class="fas fa-file-signature"></i> Contrato anexado: ${activeContract.titulo}</span>
-                        ` : `
-                            <span style="font-size:11px; color:var(--danger);"><i class="fas fa-exclamation-triangle"></i> Nenhum contrato anexado no GED</span>
-                        `}
+                    <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
+                        ${partner.link_proposta_drive ? `
+                        <a href="${partner.link_proposta_drive}" target="_blank" style="font-size:11px; color:var(--primary); text-decoration:none;"><i class="fas fa-external-link-alt"></i> Proposta no Drive</a>
+                        ` : ''}
+                        ${contrato && contrato.arquivo_url ? `
+                        <a href="${contrato.arquivo_url}" target="_blank" style="font-size:11px; color:#22c55e; text-decoration:none;"><i class="fas fa-file-contract"></i> Contrato Assinado</a>
+                        ` : ''}
                     </div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
                     ${statusBadge}
-                    ${partner.status_funil !== 'Contrato Ativo' ? `
-                        <button class="btn btn-secondary btn-activate-partner" data-part-id="${partner.id}" style="padding: 4px 8px; font-size:11px; margin-top:6px; background:var(--success-glow); color:var(--success);">
-                            Ativar Parceria
-                        </button>
-                    ` : ''}
                 </div>
             `;
-            
-            const actBtn = card.querySelector('.btn-activate-partner');
-            if (actBtn) {
-                actBtn.addEventListener('click', () => {
-                    DB_Engine.updatePartnerStatus(partner.id, 'Contrato Ativo');
-                });
-            }
-
             partnersList.appendChild(card);
         });
+    }
+
+    const formCreatePartner = document.getElementById('form-create-partner');
+    if (formCreatePartner && !formCreatePartner.dataset.listener) {
+        formCreatePartner.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('partner-nome').value;
+            const tipo = document.getElementById('partner-tipo').value;
+            const link = document.getElementById('partner-proposta-url').value;
+            
+            const newId = 'par_' + Date.now();
+            DB.parceiros_patrocinadores.push({
+                id: newId,
+                nome_empresa: nome,
+                tipo_parceria: tipo,
+                status_funil: 'Aguardando Contrato',
+                link_proposta_drive: link
+            });
+            
+            DB.logs_notificacoes.push({
+                id: 'log_' + Date.now(),
+                usuario_id: currentUser ? currentUser.id : 'u1',
+                tipo_notificacao: 'Sistema',
+                gatilho_regra: 'NOVA_PARCERIA',
+                destinatario_email: 'juridico@atleticalup.com.br',
+                status_entrega: 'ENVIADO',
+                data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                erro_detalhe: null
+            });
+            
+            logSQL(`INSERT INTO parceiros_patrocinadores (nome_empresa, tipo_parceria, status_funil, link_proposta_drive) VALUES ('${nome}', '${tipo}', 'Aguardando Contrato', '${link}');`, 'query');
+            logSQL(`Notificação disparada para Diretoria Jurídica sobre nova proposta de parceria: ${nome}.`, 'success');
+            
+            formCreatePartner.reset();
+            refreshAllUI();
+        });
+        formCreatePartner.dataset.listener = 'true';
+    }
+
+    function renderLegalModule() {
+        const auditoriaTbody = document.querySelector('#auditoria-parcerias-table tbody');
+        if (auditoriaTbody) {
+            auditoriaTbody.innerHTML = '';
+            
+            const parceriasAguardando = DB.parceiros_patrocinadores.filter(p => p.status_funil !== 'Contrato Ativo' && p.status_funil !== 'Encerrado');
+            
+            if (parceriasAguardando.length === 0) {
+                auditoriaTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">Nenhuma parceria pendente de contrato no momento.</td></tr>';
+            } else {
+                parceriasAguardando.forEach(partner => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><b>${partner.nome_empresa}</b></td>
+                        <td>${partner.tipo_parceria}</td>
+                        <td>
+                            ${partner.link_proposta_drive ? `
+                            <a href="${partner.link_proposta_drive}" target="_blank" style="color:var(--primary); text-decoration:none;">
+                                <i class="fas fa-file-alt"></i> Visualizar Proposta
+                            </a>
+                            ` : `<span style="color:var(--text-muted);">S/ Link</span>`}
+                        </td>
+                        <td><span class="badge badge-warning">${partner.status_funil}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary btn-detail-partner" data-partner-id="${partner.id}" style="padding: 4px 8px; font-size: 11px;">
+                                <i class="fas fa-eye"></i> Detalhes
+                            </button>
+                        </td>
+                    `;
+                    auditoriaTbody.appendChild(tr);
+                });
+
+                // Attach click listeners to detail buttons
+                auditoriaTbody.querySelectorAll('.btn-detail-partner').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-partner-id');
+                        openPartnerDetailModal(id);
+                    });
+                });
+            }
+        }
 
         // GED documents table
         const gedTbody = document.querySelector('#ged-table tbody');
@@ -2458,36 +2653,156 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Event Handler: Upload document link to GED (fixes validation issues for partners - RN-JUR-01)
-    document.getElementById('btn-add-document').addEventListener('click', () => {
-        const title = document.getElementById('doc-title').value;
-        const type = document.getElementById('doc-type').value;
-        const url = document.getElementById('doc-url').value;
-        const expiry = document.getElementById('doc-expiry').value;
-        const partnerId = document.getElementById('doc-partner-select').value;
+    // PARTNER DETAIL MODAL LOGIC (Jurídico Read/Write)
+    function openPartnerDetailModal(partnerId) {
+        const partner = DB.parceiros_patrocinadores.find(p => p.id === partnerId);
+        if (!partner) return;
 
-        if (!title || !url) {
-            alert('Preencha os dados do documento (título e URL do Drive são obrigatórios)!');
-            return;
+        document.getElementById('detail-partner-id').value = partner.id;
+        document.getElementById('detail-partner-name').value = partner.nome_empresa;
+        document.getElementById('detail-partner-type').value = partner.tipo_parceria;
+
+        const proposalContainer = document.getElementById('detail-partner-proposal-container');
+        if (partner.link_proposta_drive) {
+            proposalContainer.innerHTML = `
+                <a href="${partner.link_proposta_drive}" target="_blank" style="color:var(--primary); text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="fas fa-external-link-alt"></i> Visualizar Proposta no Drive
+                </a>
+            `;
+        } else {
+            proposalContainer.innerHTML = `<span style="color:var(--text-muted); font-style:italic;">Sem link de proposta cadastrado</span>`;
         }
 
-        const newId = 'dc_' + Date.now();
-        DB.documentos_contratos.push({
-            id: newId,
-            titulo: title,
-            tipo_documento: type,
-            arquivo_url: url,
-            data_vencimento: expiry || null,
-            parceiro_id: partnerId || null
+        // Populate status dropdown: excluding Contrato Ativo as per RN-JUR-01
+        const statusSelect = document.getElementById('detail-partner-status');
+        statusSelect.innerHTML = `
+            <option value="Prospecção">Prospecção</option>
+            <option value="Negociação">Negociação</option>
+            <option value="Aguardando Contrato">Aguardando Contrato</option>
+            <option value="Encerrado">Encerrado</option>
+            <option value="Arquivado">Arquivado</option>
+        `;
+
+        if (partner.status_funil === 'Contrato Ativo') {
+            const opt = document.createElement('option');
+            opt.value = 'Contrato Ativo';
+            opt.textContent = 'Contrato Ativo';
+            opt.disabled = true;
+            statusSelect.appendChild(opt);
+            statusSelect.value = 'Contrato Ativo';
+            statusSelect.disabled = true;
+        } else {
+            statusSelect.value = partner.status_funil;
+            statusSelect.disabled = false;
+        }
+
+        // Check write permission for mod-legal
+        const isWriteable = canWrite('mod-legal');
+        const saveBtn = document.getElementById('btn-save-partner-detail');
+        if (isWriteable) {
+            if (partner.status_funil !== 'Contrato Ativo') {
+                statusSelect.disabled = false;
+            }
+            if (saveBtn) saveBtn.style.display = '';
+        } else {
+            statusSelect.disabled = true;
+            if (saveBtn) saveBtn.style.display = 'none';
+        }
+
+        document.getElementById('partner-detail-overlay').classList.add('active');
+    }
+
+    function closePartnerDetailModal() {
+        document.getElementById('partner-detail-overlay').classList.remove('active');
+    }
+
+    // Modal Close Listeners
+    const btnCloseDetail = document.getElementById('btn-close-partner-detail');
+    if (btnCloseDetail) btnCloseDetail.addEventListener('click', closePartnerDetailModal);
+
+    const btnCancelDetail = document.getElementById('btn-cancel-partner-detail');
+    if (btnCancelDetail) btnCancelDetail.addEventListener('click', closePartnerDetailModal);
+
+    // Modal Save Listener
+    const btnSaveDetail = document.getElementById('btn-save-partner-detail');
+    if (btnSaveDetail && !btnSaveDetail.dataset.listener) {
+        btnSaveDetail.addEventListener('click', () => {
+            const partnerId = document.getElementById('detail-partner-id').value;
+            const newStatus = document.getElementById('detail-partner-status').value;
+
+            const partner = DB.parceiros_patrocinadores.find(p => p.id === partnerId);
+            if (!partner) return;
+
+            const oldStatus = partner.status_funil;
+            if (oldStatus !== newStatus) {
+                partner.status_funil = newStatus;
+
+                // Log SQL Query simulator
+                logSQL(`UPDATE parceiros_patrocinadores SET status_funil = '${newStatus}' WHERE id = '${partnerId}';`, 'query');
+                logSQL(`Status da parceria '${partner.nome_empresa}' atualizado de '${oldStatus}' para '${newStatus}' pelo Jurídico.`, 'success');
+
+                // Add Notification to logs
+                DB.logs_notificacoes.push({
+                    id: 'log_' + Date.now(),
+                    usuario_id: currentUser ? currentUser.id : 'u5',
+                    tipo_notificacao: 'System',
+                    gatilho_regra: 'STATUS_PARCERIA_JURIDICO',
+                    destinatario_email: 'parcerias@atleticalup.com.br',
+                    status_entrega: 'ENVIADO',
+                    data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                    erro_detalhe: null
+                });
+            }
+
+            closePartnerDetailModal();
+            refreshAllUI();
         });
+        btnSaveDetail.dataset.listener = 'true';
+    }
 
-        logSQL(`INSERT INTO documentos_contratos (titulo, tipo_documento, arquivo_url, data_vencimento, parceiro_id) VALUES ('${title}', '${type}', '${url}', '${expiry}', '${partnerId}');`, 'query');
-        logSQL(`GED: Arquivo de texto simples anexado com sucesso para auditoria e conciliação jurídica de parceria.`, 'success');
+    // Event Handler: Upload document link to GED (fixes validation issues for partners - RN-JUR-01)
+    const btnAddDoc = document.getElementById('btn-add-document');
+    if (btnAddDoc && !btnAddDoc.dataset.listener) {
+        btnAddDoc.addEventListener('click', () => {
+            const title = document.getElementById('doc-title').value;
+            const type = document.getElementById('doc-type').value;
+            const url = document.getElementById('doc-url').value;
+            const expiry = document.getElementById('doc-expiry').value;
+            const partnerId = document.getElementById('doc-partner-select').value;
 
-        document.getElementById('doc-title').value = '';
-        document.getElementById('doc-url').value = '';
-        refreshAllUI();
-    });
+            if (!title || !url) {
+                alert('Preencha os dados do documento (título e URL do Drive são obrigatórios)!');
+                return;
+            }
+
+            const newId = 'dc_' + Date.now();
+            DB.documentos_contratos.push({
+                id: newId,
+                titulo: title,
+                tipo_documento: type,
+                arquivo_url: url,
+                data_vencimento: expiry || null,
+                parceiro_id: partnerId || null
+            });
+
+            logSQL(`INSERT INTO documentos_contratos (titulo, tipo_documento, arquivo_url, data_vencimento, parceiro_id) VALUES ('${title}', '${type}', '${url}', '${expiry}', '${partnerId}');`, 'query');
+            logSQL(`GED: Arquivo de texto simples anexado com sucesso para auditoria e conciliação jurídica de parceria.`, 'success');
+            
+            if (type === 'Contrato' && partnerId) {
+                const partner = DB.parceiros_patrocinadores.find(p => p.id === partnerId);
+                if (partner && partner.status_funil !== 'Contrato Ativo') {
+                    partner.status_funil = 'Contrato Ativo';
+                    logSQL(`UPDATE parceiros_patrocinadores SET status_funil='Contrato Ativo' WHERE id='${partnerId}';`, 'query');
+                    logSQL(`Parceria ${partner.nome_empresa} ativada automaticamente após vínculo do Contrato no GED!`, 'success');
+                }
+            }
+
+            document.getElementById('doc-title').value = '';
+            document.getElementById('doc-url').value = '';
+            refreshAllUI();
+        });
+        btnAddDoc.dataset.listener = 'true';
+    }
 
     // ------------------------------------------------------------------------
     // 4. BOOTSTRAP E RENDERIZADOR TOTAL
@@ -2621,6 +2936,108 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setupTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-tab');
+                if (!targetId) return;
+                
+                const tabNav = btn.closest('.tab-nav');
+                const moduleContainer = tabNav ? tabNav.parentElement : document;
+                
+                if (tabNav) {
+                    tabNav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                }
+                
+                if (moduleContainer) {
+                    moduleContainer.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                }
+                
+                btn.classList.add('active');
+                const targetContent = document.getElementById(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
+            });
+        });
+    }
+
+    function setupConnectionBadge() {
+        const badge = document.getElementById('connection-status-badge');
+        const icon = document.getElementById('conn-icon');
+        if (badge && icon) {
+            badge.className = 'conn-icon-badge checking-icon';
+            icon.className = 'fas fa-circle-notch fa-spin';
+            
+            setTimeout(() => {
+                badge.className = 'conn-icon-badge online-icon';
+                icon.className = 'fas fa-check-circle';
+            }, 1500);
+        }
+    }
+
+    function renderNotifications() {
+        const notifList = document.getElementById('notifications-list');
+        const notifBadge = document.getElementById('notif-badge');
+        if (!notifList) return;
+
+        notifList.innerHTML = '';
+        
+        const logs = DB.logs_notificacoes.sort((a, b) => new Date(b.data_envio) - new Date(a.data_envio));
+        
+        if (logs.length === 0) {
+            notifList.innerHTML = '<div class="notif-empty">Nenhuma notificação no momento.</div>';
+            if (notifBadge) notifBadge.style.display = 'none';
+        } else {
+            if (notifBadge) {
+                notifBadge.style.display = 'flex';
+                notifBadge.innerText = logs.length;
+            }
+            logs.forEach(log => {
+                const isError = log.status_entrega === 'FALHA';
+                const div = document.createElement('div');
+                div.className = 'notif-item';
+                div.innerHTML = `
+                    <div class="notif-item-header">
+                        <span class="notif-item-title">${log.tipo_notificacao} - ${log.gatilho_regra}</span>
+                        <span class="notif-item-time">${log.data_envio.split(' ')[0]}</span>
+                    </div>
+                    <div class="notif-item-detail">
+                        Para: ${log.destinatario_email}
+                    </div>
+                    <div>
+                        <span class="${isError ? 'notif-status-falha' : 'notif-status-enviado'}">
+                            ${isError ? '<i class="fas fa-times-circle"></i> FALHA' : '<i class="fas fa-check-circle"></i> ENVIADO'}
+                        </span>
+                        ${isError && log.erro_detalhe ? `<div style="font-size:10px; color:var(--danger); margin-top:4px;">Erro: ${log.erro_detalhe}</div>` : ''}
+                    </div>
+                `;
+                notifList.appendChild(div);
+            });
+        }
+    }
+
+    // Comportamento do Drawer de Notificações
+    const btnNotif = document.getElementById('btn-notifications');
+    const drawer = document.getElementById('notifications-drawer');
+    const overlay = document.getElementById('notifications-overlay');
+    const btnCloseNotif = document.getElementById('btn-close-notifications');
+
+    if (btnNotif && drawer && overlay && btnCloseNotif) {
+        btnNotif.addEventListener('click', () => {
+            drawer.classList.add('open');
+            overlay.classList.add('active');
+        });
+        
+        const closeDrawer = () => {
+            drawer.classList.remove('open');
+            overlay.classList.remove('active');
+        };
+
+        btnCloseNotif.addEventListener('click', closeDrawer);
+        overlay.addEventListener('click', closeDrawer);
+    }
+
     function refreshAllUI() {
         renderExecutiveDashboard();
         renderAccessModule();
@@ -2630,8 +3047,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderProductsSupplyModule();
         renderSportsModule();
         renderFinanceModule();
+        renderParceriasModule();
         renderLegalModule();
+        renderNotifications();
     }
+
+    // Inicialização da Fase 5 (Abas e Badge)
+    setupTabs();
+    setupConnectionBadge();
 
     // Startup system logs (executados uma vez no carregamento)
     logSQL('SGBD Iniciado. PostgreSQL v16.1 (Debian) em x86_64-pc-linux-gnu.', 'success');
