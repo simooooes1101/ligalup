@@ -1444,7 +1444,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    }
 
     // RENDER 2: ACCESS MANAGEMENT MODULE (Gestão de Acessos)
     function renderAccessModule() {
