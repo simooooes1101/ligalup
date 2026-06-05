@@ -153,6 +153,31 @@
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" id="notif-badge" style="display:none;"></span>
                     </div>
+                    <div class="profile-widget-container" style="position:relative; margin-left: 12px;">
+                        <div class="profile-avatar-circle" id="btn-profile-dropdown" title="Minhas Configurações" style="cursor:pointer; width:36px; height:36px; border-radius:50%; border:2px solid var(--accent); overflow:hidden; background:var(--background); display: flex; align-items: center; justify-content: center;">
+                            <img id="header-user-avatar" src="assets/default-avatar.png" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">
+                        </div>
+                        
+                        <!-- Janela Flutuante de Perfil -->
+                        <div id="profile-dropdown" class="profile-dropdown glass-card" style="display:none; position:absolute; right:0; top:45px; width:260px; z-index:1000; padding:16px; border:1px solid rgba(255,255,255,0.1); border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); background: rgba(18, 18, 18, 0.95); backdrop-filter: blur(10px);">
+                            <div style="text-align:center; margin-bottom:12px;">
+                                <div style="width:64px; height:64px; border-radius:50%; overflow:hidden; margin:0 auto 8px; border:2px solid var(--primary); display: flex; align-items: center; justify-content: center;">
+                                    <img id="dropdown-user-avatar" src="assets/default-avatar.png" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                                <h4 id="dropdown-user-name" style="margin:0; font-size:14px; font-family:var(--font-heading); color:#fff;">Nome do Usuário</h4>
+                                <p id="dropdown-user-email" style="margin:4px 0 0; font-size:11px; color:var(--text-secondary);">email@atleticalup.com.br</p>
+                                <span id="dropdown-user-badge" class="badge badge-secondary" style="font-size:10px; margin-top:6px; display: inline-block;">Cargo / Diretoria</span>
+                            </div>
+                            <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; display:flex; flex-direction:column; gap:8px;">
+                                <button id="btn-go-to-settings" class="btn btn-accent btn-block" style="font-size:12px; padding:6px 12px; width:100%;">
+                                    <i class="fas fa-user-cog"></i> Gerenciar Perfil
+                                </button>
+                                <button id="btn-dropdown-logout" class="btn btn-secondary btn-block" style="font-size:12px; padding:6px 12px; width:100%; background:rgba(239,68,68,0.1); color:#ef4444; border-color:transparent;">
+                                    <i class="fas fa-sign-out-alt"></i> Sair do Painel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- DRAWER DE NOTIFICAÇÕES -->
@@ -200,6 +225,33 @@
                         <div class="kpi-info">
                             <p>Atletas Irregulares</p>
                             <h3 id="kpi-atletas-irregulares">0</h3>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CALENDÁRIO INTERATIVO E PAINEL DE AÇÕES -->
+                <div class="dashboard-calendar-grid" style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-bottom: 24px;">
+                    <!-- Card do Calendário -->
+                    <div class="glass-card" id="dashboard-calendar-card" style="padding: 20px;">
+                        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom:16px;">
+                            <h3 style="font-family: var(--font-heading); margin-bottom: 0; display: flex; align-items: center; gap: 8px;"><i class="fas fa-calendar-alt" style="color: var(--primary);"></i> Calendário da LUP</h3>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <button id="cal-prev-month" class="btn btn-secondary" style="padding:4px 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); font-size: 11px;"><i class="fas fa-chevron-left"></i></button>
+                                <span id="cal-month-year" style="font-weight:bold; font-size:13px; min-width:90px; text-align:center; color:#fff;">--/--</span>
+                                <button id="cal-next-month" class="btn btn-secondary" style="padding:4px 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); font-size: 11px;"><i class="fas fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="calendar-wrapper">
+                            <!-- Injetado dinamicamente no JS -->
+                        </div>
+                    </div>
+                    <!-- Painel de Detalhes -->
+                    <div class="glass-card" id="calendar-day-details-card" style="display: flex; flex-direction: column; padding: 20px;">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 12px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                            <i class="fas fa-list-ul" style="color: var(--accent);"></i> Ações do Dia <span id="cal-selected-day-label" style="margin-left:auto; font-size:13px; color: var(--text-secondary); font-weight:normal;">--/--</span>
+                        </h3>
+                        <div id="calendar-day-actions-list" style="flex:1; overflow-y:auto; max-height:280px; display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Injetado dinamicamente no JS -->
                         </div>
                     </div>
                 </div>
@@ -556,7 +608,6 @@
                                             <th>Custo</th>
                                             <th>Venda</th>
                                             <th>Estoque Atual</th>
-                                            <th>Operações</th>
                                         </tr>
                                     </thead>
                                     <tbody><!-- Dinâmico JS --></tbody>
@@ -1352,7 +1403,60 @@
                 </div>
             </section>
 
+            <!-- ========================================================== -->
+            <!-- SEÇÃO 11: CONFIGURAÇÕES DE PERFIL INDIVIDUAL -->
+            <!-- ========================================================== -->
+            <section id="mod-configuracoes" class="module-section">
+                <div class="glass-card">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom: 20px;">
+                        <h3 style="font-family: var(--font-heading); margin-bottom: 0;"><i class="fas fa-user-cog"></i> Configurações do Meu Perfil</h3>
+                        <span class="info-tooltip" data-tip="Atualize seus dados individuais de acesso e personalize sua foto de perfil."><i class="fas fa-info-circle"></i></span>
+                    </div>
+                    <form id="form-profile-settings">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nome Completo (Membro da Diretoria)</label>
+                                <input type="text" class="form-control" id="profile-name" readonly style="opacity:0.7; background:rgba(255,255,255,0.05); cursor:not-allowed;">
+                            </div>
+                            <div class="form-group">
+                                <label>E-mail de Cadastro / Login</label>
+                                <input type="email" class="form-control" id="profile-email" required placeholder="Digite seu e-mail institucional">
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid" style="margin-top:12px;">
+                            <div class="form-group">
+                                <label>Nova Senha de Acesso</label>
+                                <input type="password" class="form-control" id="profile-password" placeholder="Mantenha em branco para não alterar">
+                                <small style="font-size:10px; color:var(--text-secondary); margin-top:2px;">Mínimo 6 caracteres.</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirmar Nova Senha</label>
+                                <input type="password" class="form-control" id="profile-password-confirm" placeholder="Mantenha em branco para não alterar">
+                            </div>
+                        </div>
 
+                        <div class="form-grid" style="margin-top:12px;">
+                            <div class="form-group">
+                                <label>Foto de Perfil (Carregar Arquivo)</label>
+                                <input type="file" class="form-control" id="profile-avatar-file" accept="image/*" style="padding:6px; background: rgba(255,255,255,0.02); height: auto;">
+                                <small style="font-size:10px; color:var(--text-secondary); margin-top:2px;">Carregue uma imagem do seu dispositivo (será convertida localmente).</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Ou insira uma URL de Foto</label>
+                                <input type="url" class="form-control" id="profile-avatar-url" placeholder="https://exemplo.com/sua-foto.jpg">
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:16px; margin-top:20px;">
+                            <button type="submit" class="btn btn-accent">
+                                <i class="fas fa-save"></i> Salvar Minhas Alterações
+                            </button>
+                            <span id="profile-save-message" style="display:none; font-size:12px; font-weight:bold; color:var(--success);"></span>
+                        </div>
+                    </form>
+                </div>
+            </section>
 
         </main>
 

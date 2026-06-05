@@ -9,13 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
     const DB = {
         usuarios: [
-            { id: 'u1', nome: 'Eduardo Carolo', email: 'presidencia@atleticalup.com.br', cargo: 'Master', diretoria: 'Presidência', status: true },
-            { id: 'u2', nome: 'Barthô da Tesouraria', email: 'financeiro@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Tesouraria', status: true },
-            { id: 'u3', nome: 'Mariana do Mkt', email: 'marketing@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Marketing', status: true },
-            { id: 'u4', nome: 'Guilherme do Esporte', email: 'esportes@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Esportes', status: true },
-            { id: 'u5', nome: 'Lucas do Jurídico', email: 'juridico@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Jurídico', status: true },
-            { id: 'u6', nome: 'Amanda Apoio', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true },
-            { id: 'u7', nome: 'Rafaela de Parcerias', email: 'parcerias@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Parcerias', status: true }
+            { id: 'u1', nome: 'Eduardo Carolo', email: 'presidencia@atleticalup.com.br', cargo: 'Master', diretoria: 'Presidência', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u2', nome: 'Barthô da Tesouraria', email: 'financeiro@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Tesouraria', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u3', nome: 'Mariana do Mkt', email: 'marketing@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Marketing', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u4', nome: 'Guilherme do Esporte', email: 'esportes@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Esportes', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u5', nome: 'Lucas do Jurídico', email: 'juridico@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Jurídico', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u6', nome: 'Amanda Apoio', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u7', nome: 'Rafaela de Parcerias', email: 'parcerias@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Parcerias', status: true, senha: 'lup123_strategy', avatar: null }
         ],
         eventos: [
             { id: 'e1', nome: 'Cervejada de Integração LUP', data_evento: '2026-06-12 18:00', local: 'Arena LUP', orcamento_previsto: 12000.00, status_aprovacao: 'Aprovado', tipo: 'Social', valor_taxa_base: 80.00, criador_id: 'u3' },
@@ -562,7 +562,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 user.cargo = cargo;
                 user.diretoria = diretoria;
                 user.status = status;
-                if (password) user.password_hash = `[HASH de '${password}']`; // Simula re-hash
+                if (password) {
+                    user.senha = password;
+                    user.password_hash = `[HASH de '${password}']`;
+                }
                 logSQL(`Usuário '${nome}' atualizado com sucesso (ID: ${id}). Status: ${status ? 'Ativo' : 'Inativo'}.`, 'success');
             } else {
                 // Criação de novo usuário
@@ -576,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return false;
                 }
                 const newId = 'u_' + Date.now();
-                DB.usuarios.push({ id: newId, nome, email, cargo, diretoria, status: true, password_hash: `[HASH de '${password}']` });
+                DB.usuarios.push({ id: newId, nome, email, cargo, diretoria, status: true, senha: password, password_hash: `[HASH de '${password}']`, avatar: null });
                 logSQL(`INSERT INTO usuarios (nome, email, cargo, diretoria, status) VALUES ('${nome}', '${email}', '${cargo}', '${diretoria}', true);`, 'query');
                 logSQL(`Novo membro '${nome}' cadastrado com sucesso (ID: ${newId}).`, 'success');
 
@@ -823,10 +826,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Autenticação local (fallback sem backend) ---
     function localAuth(email, password) {
-        const DEFAULT_PASSWORD = 'lup123_strategy';
         const user = DB.usuarios.find(u => u.email === email && u.status);
         if (!user) return null;
-        if (password !== DEFAULT_PASSWORD) return null;
+        const expectedPassword = user.senha || 'lup123_strategy';
+        if (password !== expectedPassword) return null;
         return user;
     }
 
@@ -900,10 +903,32 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser = user;
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-wrapper').style.display = '';
+        
+        // Atualiza a foto e textos do perfil no topo
+        const userAvatar = user.avatar || 'assets/default-avatar.png';
+        const imgHeader = document.getElementById('header-user-avatar');
+        const imgDropdown = document.getElementById('dropdown-user-avatar');
+        if (imgHeader) imgHeader.src = userAvatar;
+        if (imgDropdown) imgDropdown.src = userAvatar;
+
+        const nameEl = document.getElementById('dropdown-user-name');
+        const emailEl = document.getElementById('dropdown-user-email');
+        const badgeEl = document.getElementById('dropdown-user-badge');
+        if (nameEl) nameEl.textContent = user.nome;
+        if (emailEl) emailEl.textContent = user.email;
+        if (badgeEl) badgeEl.textContent = `${user.cargo} / ${user.diretoria !== 'Nenhuma' ? user.diretoria : 'Geral'}`;
+
         populateSidebar(user);
         applyNavPermissions();
         applyReadonlyMode();
         logSQL(`LOGIN: Usuário '${user.nome}' autenticado. cargo=${user.cargo}, diretoria=${user.diretoria}`, 'trigger');
+        
+        // Configura e inicializa o calendário para o mês atual ao entrar no app
+        calendarCurrentDate = new Date();
+        calendarSelectedDate = new Date();
+        renderDashboardCalendar();
+        renderCalendarDayDetails(calendarSelectedDate);
+
         refreshAllUI();
 
         // Sempre resetar para a aba "Dashboard Executivo" ao fazer login para evitar herdar telas anteriores
@@ -1091,9 +1116,330 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.btn-delete-log').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const logId = btn.getAttribute('data-log-id');
-                DB_Engine.mutateAuditLog(logId, 'delete');
+                if (confirm('Tem certeza de que deseja excluir este log de auditoria? Esta ação é irreversível.')) {
+                    DB_Engine.mutateAuditLog(logId, 'delete');
+                }
             });
         });
+    }
+
+    // --- FUNÇÕES E LISTENERS DO CALENDÁRIO ---
+    function renderDashboardCalendar() {
+        const monthYearEl = document.getElementById('cal-month-year');
+        const calWrapper = document.querySelector('.calendar-wrapper');
+        if (!monthYearEl || !calWrapper) return;
+
+        const year = calendarCurrentDate.getFullYear();
+        const month = calendarCurrentDate.getMonth();
+
+        const monthsPT = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+        monthYearEl.textContent = `${monthsPT[month]} ${year}`;
+
+        calWrapper.innerHTML = `
+            <div class="calendar-grid-header">
+                <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+            </div>
+            <div class="calendar-grid-body"></div>
+        `;
+
+        const gridBody = calWrapper.querySelector('.calendar-grid-body');
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const prevLastDay = new Date(year, month, 0).getDate();
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const lastDayIndex = new Date(year, month, lastDay).getDay();
+        const nextDays = 7 - lastDayIndex - 1;
+
+        // Dias do mês anterior
+        for (let x = firstDayIndex; x > 0; x--) {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'calendar-day other-month';
+            dayEl.textContent = prevLastDay - x + 1;
+            gridBody.appendChild(dayEl);
+        }
+
+        // Dias do mês atual
+        for (let i = 1; i <= lastDay; i++) {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'calendar-day';
+            dayEl.textContent = i;
+
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            dayEl.setAttribute('data-date', dateStr);
+
+            const today = new Date();
+            if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                dayEl.classList.add('today');
+            }
+
+            if (i === calendarSelectedDate.getDate() && month === calendarSelectedDate.getMonth() && year === calendarSelectedDate.getFullYear()) {
+                dayEl.classList.add('active-day');
+            }
+
+            // Busca eventos aprovados
+            const hasEvents = DB.eventos.some(e => {
+                if (e.status_aprovacao !== 'Aprovado') return false;
+                return e.data_evento.split(' ')[0] === dateStr;
+            });
+
+            // Busca posts agendados
+            const hasPosts = DB.cronograma_postagens.some(p => {
+                if (p.status !== 'Agendado') return false;
+                return p.data_publicacao.split(' ')[0] === dateStr;
+            });
+
+            if (hasEvents || hasPosts) {
+                const dotsContainer = document.createElement('div');
+                dotsContainer.className = 'calendar-dots-container';
+                if (hasEvents) {
+                    const dot = document.createElement('span');
+                    dot.className = 'calendar-dot dot-event';
+                    dotsContainer.appendChild(dot);
+                }
+                if (hasPosts) {
+                    const dot = document.createElement('span');
+                    dot.className = 'calendar-dot dot-post';
+                    dotsContainer.appendChild(dot);
+                }
+                dayEl.appendChild(dotsContainer);
+            }
+
+            dayEl.addEventListener('click', () => {
+                calendarSelectedDate = new Date(year, month, i);
+                renderDashboardCalendar();
+                renderCalendarDayDetails(calendarSelectedDate);
+            });
+
+            gridBody.appendChild(dayEl);
+        }
+
+        // Dias do próximo mês
+        for (let j = 1; j <= nextDays; j++) {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'calendar-day other-month';
+            dayEl.textContent = j;
+            gridBody.appendChild(dayEl);
+        }
+    }
+
+    function renderCalendarDayDetails(date) {
+        const selectedLabel = document.getElementById('cal-selected-day-label');
+        const actionsList = document.getElementById('calendar-day-actions-list');
+        if (!selectedLabel || !actionsList) return;
+
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const day = date.getDate();
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        selectedLabel.textContent = `${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}/${year}`;
+        actionsList.innerHTML = '';
+
+        const dayEvents = DB.eventos.filter(e => {
+            if (e.status_aprovacao !== 'Aprovado') return false;
+            return e.data_evento.split(' ')[0] === dateStr;
+        });
+
+        const dayPosts = DB.cronograma_postagens.filter(p => {
+            if (p.status !== 'Agendado') return false;
+            return p.data_publicacao.split(' ')[0] === dateStr;
+        });
+
+        if (dayEvents.length === 0 && dayPosts.length === 0) {
+            actionsList.innerHTML = `
+                <div style="text-align:center; padding: 24px 12px; color: var(--text-secondary); font-size:12px;">
+                    <i class="fas fa-calendar-times" style="font-size:24px; margin-bottom:8px; opacity:0.4;"></i>
+                    <p>Nenhuma ação agendada para este dia.</p>
+                </div>
+            `;
+            return;
+        }
+
+        dayEvents.forEach(evt => {
+            const timeStr = evt.data_evento.split(' ')[1] || 'Geral';
+            const card = document.createElement('div');
+            card.className = 'action-day-card event-type';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:4px; color:#10b981;">
+                    <span><i class="fas fa-star"></i> Evento Aprovado</span>
+                    <span>${timeStr}</span>
+                </div>
+                <div style="font-size:13px; font-weight:bold; color:#fff; margin-bottom:2px;">${evt.nome}</div>
+                <div style="color:var(--text-secondary); font-size:11px;">
+                    <i class="fas fa-map-marker-alt"></i> Local: ${evt.local} | Tipo: ${evt.tipo}
+                </div>
+            `;
+            actionsList.appendChild(card);
+        });
+
+        dayPosts.forEach(post => {
+            const timeStr = post.data_publicacao.split(' ')[1] || 'Geral';
+            const card = document.createElement('div');
+            card.className = 'action-day-card post-type';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:4px; color:#ea580c;">
+                    <span><i class="fab fa-instagram"></i> Postagem Agendada (${post.plataforma})</span>
+                    <span>${timeStr}</span>
+                </div>
+                <div style="font-size:13px; font-weight:bold; color:#fff; margin-bottom:2px;">${post.tipo_conteudo}</div>
+                <div style="color:var(--text-secondary); font-size:11px; word-break:break-word;">
+                    Desc: ${post.descricao}
+                </div>
+            `;
+            actionsList.appendChild(card);
+        });
+    }
+
+    // Navegação do Calendário
+    const prevMonthBtn = document.getElementById('cal-prev-month');
+    const nextMonthBtn = document.getElementById('cal-next-month');
+    if (prevMonthBtn && nextMonthBtn) {
+        prevMonthBtn.addEventListener('click', () => {
+            calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() - 1);
+            renderDashboardCalendar();
+        });
+        nextMonthBtn.addEventListener('click', () => {
+            calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + 1);
+            renderDashboardCalendar();
+        });
+    }
+
+    // --- LOGICA DE GERENCIAMENTO DE PERFIL INDIVIDUAL ---
+    const btnProfile = document.getElementById('btn-profile-dropdown');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const btnGoSettings = document.getElementById('btn-go-to-settings');
+    const btnDropdownLogout = document.getElementById('btn-dropdown-logout');
+
+    if (btnProfile && profileDropdown) {
+        btnProfile.addEventListener('click', (e) => {
+            e.stopPropagation();
+            profileDropdown.style.display = profileDropdown.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.addEventListener('click', () => {
+            profileDropdown.style.display = 'none';
+        });
+
+        profileDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    if (btnGoSettings) {
+        btnGoSettings.addEventListener('click', () => {
+            if (profileDropdown) profileDropdown.style.display = 'none';
+
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.module-section').forEach(s => s.classList.remove('active'));
+
+            const configSection = document.getElementById('mod-configuracoes');
+            if (configSection) {
+                configSection.classList.add('active');
+            }
+
+            if (currentUser) {
+                document.getElementById('profile-name').value = currentUser.nome;
+                document.getElementById('profile-email').value = currentUser.email;
+                document.getElementById('profile-password').value = '';
+                document.getElementById('profile-password-confirm').value = '';
+                document.getElementById('profile-avatar-url').value = currentUser.avatar && !currentUser.avatar.startsWith('data:') ? currentUser.avatar : '';
+                document.getElementById('profile-avatar-file').value = '';
+            }
+        });
+    }
+
+    if (btnDropdownLogout) {
+        btnDropdownLogout.addEventListener('click', () => {
+            if (profileDropdown) profileDropdown.style.display = 'none';
+            document.getElementById('btn-logout').click();
+        });
+    }
+
+    const formProfileSettings = document.getElementById('form-profile-settings');
+    if (formProfileSettings) {
+        formProfileSettings.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const email = document.getElementById('profile-email').value.trim();
+            const password = document.getElementById('profile-password').value;
+            const passwordConfirm = document.getElementById('profile-password-confirm').value;
+            const avatarUrl = document.getElementById('profile-avatar-url').value.trim();
+            const avatarFileInput = document.getElementById('profile-avatar-file');
+            const saveMsg = document.getElementById('profile-save-message');
+
+            if (password && password.length < 6) {
+                alert('A nova senha deve conter pelo menos 6 caracteres!');
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                alert('A nova senha e a confirmação de senha não coincidem!');
+                return;
+            }
+
+            const executeSave = (avatarData) => {
+                const userInDb = DB.usuarios.find(u => u.id === currentUser.id);
+                if (userInDb) {
+                    userInDb.email = email;
+                    if (password) {
+                        userInDb.senha = password;
+                        userInDb.password_hash = `[HASH de '${password}']`;
+                    }
+                    if (avatarData) {
+                        userInDb.avatar = avatarData;
+                    }
+
+                    currentUser.email = email;
+                    if (password) {
+                        currentUser.senha = password;
+                        currentUser.password_hash = userInDb.password_hash;
+                    }
+                    if (avatarData) {
+                        currentUser.avatar = avatarData;
+                    }
+
+                    localStorage.setItem('lup_user', JSON.stringify(currentUser));
+
+                    logSQL(`UPDATE usuarios SET email = '${email}'${password ? `, senha = [HASH]` : ''}${avatarData ? `, avatar = [IMAGE]` : ''} WHERE id = '${currentUser.id}';`, 'query');
+                    logSQL(`Perfil de '${currentUser.nome}' atualizado com sucesso.`, 'success');
+
+                    const userAvatar = currentUser.avatar || 'assets/default-avatar.png';
+                    const imgHeader = document.getElementById('header-user-avatar');
+                    const imgDropdown = document.getElementById('dropdown-user-avatar');
+                    if (imgHeader) imgHeader.src = userAvatar;
+                    if (imgDropdown) imgDropdown.src = userAvatar;
+
+                    const emailEl = document.getElementById('dropdown-user-email');
+                    if (emailEl) emailEl.textContent = email;
+
+                    if (saveMsg) {
+                        saveMsg.textContent = 'Alterações salvas com sucesso!';
+                        saveMsg.style.display = 'inline-block';
+                        setTimeout(() => {
+                            saveMsg.style.display = 'none';
+                        }, 3000);
+                    }
+                    refreshAllUI();
+                }
+            };
+
+            if (avatarFileInput && avatarFileInput.files && avatarFileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    executeSave(evt.target.result);
+                };
+                reader.readAsDataURL(avatarFileInput.files[0]);
+            } else if (avatarUrl) {
+                executeSave(avatarUrl);
+            } else {
+                executeSave(null);
+            }
+        });
+    }
     }
 
     // RENDER 2: ACCESS MANAGEMENT MODULE (Gestão de Acessos)
@@ -1136,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('user-status').checked = user.status;
                 document.getElementById('user-status-text').innerText = user.status ? 'Conta Ativa' : 'Conta Inativa';
                 document.getElementById('user-password').value = '';
-                document.getElementById('user-password-group').style.opacity = '0.6';
+                document.getElementById('user-password-group').style.opacity = '1';
                 document.getElementById('user-form-title').innerHTML = `<i class="fas fa-user-edit"></i> Editando: ${user.nome}`;
                 document.getElementById('btn-cancel-user-edit').style.display = 'inline-flex';
                 document.getElementById('btn-save-user').innerHTML = '<i class="fas fa-save"></i> Salvar Alterações (Atualizar no Supabase)';
@@ -1435,7 +1781,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 tbody.querySelectorAll('.btn-delete-post').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const id = btn.getAttribute('data-post-id');
-                        DB_Engine.deleteCronogramaPostagem(id);
+                        if (confirm('Tem certeza de que deseja excluir esta postagem? Esta ação é irreversível.')) {
+                            DB_Engine.deleteCronogramaPostagem(id);
+                        }
                     });
                 });
             }
@@ -1506,7 +1854,7 @@ document.addEventListener('DOMContentLoaded', () => {
             productsTbody.querySelectorAll('.btn-delete-product').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const pId = btn.getAttribute('data-prod-id');
-                    if (confirm('Tem certeza que deseja excluir este produto?')) {
+                    if (confirm('Tem certeza que deseja excluir este produto? Esta ação é irreversível.')) {
                         const idx = DB.produtos.findIndex(p => p.id === pId);
                         if (idx !== -1) {
                             DB.produtos.splice(idx, 1);
@@ -1537,21 +1885,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>R$ ${product.preco_custo.toFixed(2)}</td>
                 <td>R$ ${product.preco_venda.toFixed(2)}</td>
                 <td>${stockBadge}</td>
-                <td>
-                    <button class="btn btn-secondary btn-stock-add" data-var-id="${variant.id}" style="padding: 2px 6px; font-size:11px;">
-                        <i class="fas fa-plus"></i> Reabastecer (+10)
-                    </button>
-                </td>
             `;
             inventoryTbody.appendChild(tr);
-        });
-
-        // Add 10 stock event listeners
-        document.querySelectorAll('.btn-stock-add').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const varId = btn.getAttribute('data-var-id');
-                DB_Engine.mutateProductStock(varId, 10);
-            });
         });
 
         // Populate dropdowns in distribution form
@@ -1699,7 +2034,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.btn-delete-mod').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const modId = btn.getAttribute('data-mod-id');
-                    if (confirm('Tem certeza que deseja excluir esta modalidade? Todos os atletas e escalações dela também serão excluídos.')) {
+                    if (confirm('Tem certeza que deseja excluir esta modalidade? Esta ação é irreversível. Todos os atletas e escalações dela também serão excluídos.')) {
                         DB_Engine.deleteModalidade(modId);
                     }
                 });
@@ -1766,7 +2101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.btn-delete-athlete').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const athId = btn.getAttribute('data-ath-id');
-                    if (confirm('Deseja realmente excluir este atleta?')) {
+                    if (confirm('Deseja realmente excluir este atleta? Esta ação é irreversível.')) {
                         DB_Engine.deleteAtleta(athId);
                     }
                 });
@@ -2196,7 +2531,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.btn-delete-lf').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const lfId = btn.getAttribute('data-lf-id');
-                    DB_Engine.mutateFinanceRecord(lfId, 'delete');
+                    if (confirm('Tem certeza de que deseja excluir este lançamento financeiro? Esta ação é irreversível.')) {
+                        DB_Engine.mutateFinanceRecord(lfId, 'delete');
+                    }
                 });
             });
         }
@@ -2397,7 +2734,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tbody.querySelectorAll('.btn-delete-part').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const id = btn.getAttribute('data-part-id');
-                        if (confirm('Deseja realmente remover este participante?')) {
+                        if (confirm('Deseja realmente remover este participante? Esta ação é irreversível.')) {
                             DB_Engine.deleteParticipanteEvento(id);
                         }
                     });
@@ -3050,6 +3387,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderParceriasModule();
         renderLegalModule();
         renderNotifications();
+        
+        // Atualiza a reatividade do calendário do dashboard
+        renderDashboardCalendar();
     }
 
     // Inicialização da Fase 5 (Abas e Badge)
