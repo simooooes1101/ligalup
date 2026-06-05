@@ -1134,7 +1134,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render Logs & Audit table (with Delete attempt simulated to test RN-LOG-01)
         const logsTbody = document.querySelector('#logs-table tbody');
         logsTbody.innerHTML = '';
-        DB.logs_notificacoes.slice().reverse().forEach(log => {
+        
+        const sortedLogs = DB.logs_notificacoes.slice().sort((a, b) => b.data_envio.localeCompare(a.data_envio));
+        sortedLogs.forEach(log => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${log.data_envio}</td>
@@ -3401,7 +3403,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         notifList.innerHTML = '';
 
-        const logs = DB.logs_notificacoes.slice().sort((a, b) => new Date(b.data_envio) - new Date(a.data_envio));
+        const logs = DB.logs_notificacoes.slice().sort((a, b) => b.data_envio.localeCompare(a.data_envio));
         const unreadCount = logs.filter(l => !l.lida).length;
 
         if (notifBadge) {
@@ -3491,6 +3493,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function refreshAllUI() {
+        // Garante que alertas de contratos vencendo são atualizados em tempo real antes de renderizar
+        checkContratoVencendoNotifications();
+
         renderExecutiveDashboard();
         renderAccessModule();
         renderEventsModule();
