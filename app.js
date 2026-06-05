@@ -71,11 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
         documentos_contratos: [
             { id: 'dc1', titulo: 'Termo de Parceria RedBull 2026', tipo_documento: 'Termo de Parceria', arquivo_url: '', data_vencimento: '2026-12-31', parceiro_id: 'par1' },
-            { id: 'dc2', titulo: 'Contrato Assinado Cervejaria 2026', tipo_documento: 'Contrato', arquivo_url: 'https://drive.google.com/file/d/atletica-lup-contrato-cerveja-193/view', data_vencimento: '2026-11-30', parceiro_id: 'par2' }
+            { id: 'dc2', titulo: 'Contrato Assinado Cervejaria 2026', tipo_documento: 'Contrato', arquivo_url: 'https://drive.google.com/file/d/atletica-lup-contrato-cerveja-193/view', data_vencimento: '2026-11-30', parceiro_id: 'par2' },
+            { id: 'dc3', titulo: 'Contrato Vestuário Adidas 2026', tipo_documento: 'Contrato', arquivo_url: 'https://drive.google.com/file/d/atletica-lup-adidas/view', data_vencimento: '2026-07-05', parceiro_id: 'par3' }
         ],
         logs_notificacoes: [
-            { id: 'log1', usuario_id: 'u3', tipo_notificacao: 'Email', gatilho_regra: 'SOLICITACAO_VERBA', destinatario_email: 'financeiro@atleticalup.com.br', status_entrega: 'ENVIADO', data_envio: '2026-05-20 10:14', erro_detalhe: null },
-            { id: 'log2', usuario_id: 'u4', tipo_notificacao: 'Email', gatilho_regra: 'ATLETA_BARRADO', destinatario_email: 'esportes@atleticalup.com.br', status_entrega: 'FALHA', data_envio: '2026-05-22 15:30', erro_detalhe: 'Try/catch exception: Resend API Connection Timeout. Mailbox unavailable.' }
+            { id: 'log1', usuario_id: 'u3', tipo_notificacao: 'Email', gatilho_regra: 'SOLICITACAO_VERBA', destinatario_email: 'financeiro@atleticalup.com.br', status_entrega: 'ENVIADO', data_envio: '2026-05-20 10:14', erro_detalhe: null, lida: false },
+            { id: 'log2', usuario_id: 'u4', tipo_notificacao: 'Email', gatilho_regra: 'ATLETA_BARRADO', destinatario_email: 'esportes@atleticalup.com.br', status_entrega: 'FALHA', data_envio: '2026-05-22 15:30', erro_detalhe: 'Try/catch exception: Resend API Connection Timeout. Mailbox unavailable.', lida: false }
         ],
         fornecedores: [
             { id: 'f1', nome: 'Confecções Estrela Ltda.', contato: 'Roberto Santos', telefone: '(11) 98765-4321', email: 'comercial@estrela.com', tipo_produto: 'Camisetas, Moletons', categoria_servico: 'Vestuário', obs: 'Prazo de entrega: 15 dias úteis' },
@@ -279,8 +280,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         gatilho_regra: 'TENTATIVA_VIOLACAO',
                         destinatario_email: 'presidencia@atleticalup.com.br',
                         status_entrega: 'ENVIADO',
-                        data_envio: new Date().toLocaleString(),
-                        erro_detalhe: `Tentativa de aprovação de evento '${event.name}' por usuário não autorizado: ${user.nome} (${user.cargo} - ${user.diretoria})`
+                        data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                        erro_detalhe: `Tentativa de aprovação de evento '${event.nome}' por usuário não autorizado: ${user.nome} (${user.cargo} - ${user.diretoria})`,
+                        lida: false
                     };
                     DB.logs_notificacoes.push(logEntry);
                     logSQL(`Inserted security violation log autonomously (ID: ${logId})`, 'trigger');
@@ -296,6 +298,23 @@ document.addEventListener('DOMContentLoaded', () => {
             // Realiza a alteração do evento (Commit Parcial)
             event.status_aprovacao = newStatus;
             logSQL(`Event status committed: '${oldStatus}' -> '${newStatus}'`, 'success');
+
+            // --- TRIGGER NOTIFICAÇÃO: Solicitação de Verba (SOLICITACAO_VERBA) ---
+            if (newStatus === 'Aguardando Tesouraria') {
+                DB.logs_notificacoes.push({
+                    id: 'log_' + Date.now(),
+                    usuario_id: currentUser ? currentUser.id : 'u1',
+                    tipo_notificacao: 'Email',
+                    gatilho_regra: 'SOLICITACAO_VERBA',
+                    destinatario_email: 'financeiro@atleticalup.com.br',
+                    status_entrega: 'ENVIADO',
+                    data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                    erro_detalhe: null,
+                    lida: false
+                });
+                logSQL(`INSERT INTO logs_notificacoes (usuario_id, tipo_notificacao, gatilho_regra, destinatario_email, status_entrega) VALUES ('${currentUser ? currentUser.id : 'u1'}', 'Email', 'SOLICITACAO_VERBA', 'financeiro@atleticalup.com.br', 'ENVIADO');`, 'query');
+                logSQL(`Notificação de SOLICITACAO_VERBA disparada automaticamente para Tesouraria sobre o evento '${event.nome}'.`, 'success');
+            }
 
             // --- TRIGGER: fn_trg_gerar_lancamento_evento_aprovado (RN-EV-02) ---
             if (newStatus === 'Aprovado' && oldStatus !== 'Aprovado') {
@@ -445,6 +464,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             athlete.status_documentacao = newStatus;
             logSQL(`Athlete document status updated: '${oldStatus}' -> '${newStatus}'`, 'success');
+
+            // --- TRIGGER NOTIFICAÇÃO: Atleta Irregular (ATLETA_BARRADO) ---
+            if (newStatus === 'Rejeitado') {
+                DB.logs_notificacoes.push({
+                    id: 'log_' + Date.now(),
+                    usuario_id: currentUser ? currentUser.id : 'u1',
+                    tipo_notificacao: 'Email',
+                    gatilho_regra: 'ATLETA_BARRADO',
+                    destinatario_email: 'esportes@atleticalup.com.br',
+                    status_entrega: 'ENVIADO',
+                    data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                    erro_detalhe: `Documentos do atleta ${athlete.nome} rejeitados. Escalação impedida.`,
+                    lida: false
+                });
+                logSQL(`INSERT INTO logs_notificacoes (usuario_id, tipo_notificacao, gatilho_regra, destinatario_email, status_entrega) VALUES ('${currentUser ? currentUser.id : 'u1'}', 'Email', 'ATLETA_BARRADO', 'esportes@atleticalup.com.br', 'ENVIADO');`, 'query');
+                logSQL(`Notificação de ATLETA_BARRADO disparada para Esportes e Coordenador sobre atleta '${athlete.nome}'.`, 'success');
+            }
+
             refreshAllUI();
             return true;
         },
@@ -932,6 +969,9 @@ document.addEventListener('DOMContentLoaded', () => {
         calendarSelectedDate = new Date();
         renderDashboardCalendar();
         renderCalendarDayDetails(calendarSelectedDate);
+
+        // Cron simulado: verifica contratos vencendo nos próximos 30 dias ao abrir o painel
+        checkContratoVencendoNotifications();
 
         refreshAllUI();
 
@@ -1664,6 +1704,23 @@ document.addEventListener('DOMContentLoaded', () => {
         DB.eventos.push(event);
         logSQL(`INSERT INTO eventos (nome, data_evento, local, orcamento_previsto, status_aprovacao, tipo, valor_taxa_base, criador_id) VALUES ('${nome}', '${data}', '${local}', ${orcamento}, 'Rascunho', '${tipo}', ${taxaBase}, '${currentUser.id}');`, 'query');
         logSQL(`Event successfully created in state 'Rascunho'. Please drag or push it to 'Aguardando Tesouraria' to request funds.`, 'success');
+
+        // --- TRIGGER NOTIFICAÇÃO: Solicitação de Verba para eventos do tipo Misto ou com orçamento previsto ---
+        if (tipo === 'Misto' || orcamento > 0) {
+            DB.logs_notificacoes.push({
+                id: 'log_' + Date.now(),
+                usuario_id: currentUser ? currentUser.id : 'u1',
+                tipo_notificacao: 'Email',
+                gatilho_regra: 'SOLICITACAO_VERBA',
+                destinatario_email: 'financeiro@atleticalup.com.br',
+                status_entrega: 'ENVIADO',
+                data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                erro_detalhe: `Solicitação de verba para evento '${nome}' (${tipo}) de valor R$ ${orcamento.toFixed(2)}.`,
+                lida: false
+            });
+            logSQL(`INSERT INTO logs_notificacoes (usuario_id, tipo_notificacao, gatilho_regra, destinatario_email, status_entrega) VALUES ('${currentUser ? currentUser.id : 'u1'}', 'Email', 'SOLICITACAO_VERBA', 'financeiro@atleticalup.com.br', 'ENVIADO');`, 'query');
+            logSQL(`Notificação de SOLICITACAO_VERBA disparada automaticamente para Tesouraria.`, 'success');
+        }
         
         document.getElementById('form-create-event').reset();
         const groupTaxa = document.getElementById('group-taxa-base');
@@ -2903,7 +2960,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 destinatario_email: 'juridico@atleticalup.com.br',
                 status_entrega: 'ENVIADO',
                 data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
-                erro_detalhe: null
+                erro_detalhe: null,
+                lida: false
             });
             
             logSQL(`INSERT INTO parceiros_patrocinadores (nome_empresa, tipo_parceria, status_funil, link_proposta_drive) VALUES ('${nome}', '${tipo}', 'Aguardando Contrato', '${link}');`, 'query');
@@ -3090,7 +3148,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     destinatario_email: 'parcerias@atleticalup.com.br',
                     status_entrega: 'ENVIADO',
                     data_envio: new Date().toISOString().replace('T', ' ').substring(0, 16),
-                    erro_detalhe: null
+                    erro_detalhe: null,
+                    lida: false
                 });
             }
 
@@ -3322,39 +3381,73 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!notifList) return;
 
         notifList.innerHTML = '';
-        
-        const logs = DB.logs_notificacoes.sort((a, b) => new Date(b.data_envio) - new Date(a.data_envio));
-        
+
+        const logs = DB.logs_notificacoes.slice().sort((a, b) => new Date(b.data_envio) - new Date(a.data_envio));
+        const unreadCount = logs.filter(l => !l.lida).length;
+
+        if (notifBadge) {
+            if (unreadCount > 0) {
+                notifBadge.style.display = 'flex';
+                notifBadge.innerText = unreadCount;
+            } else {
+                notifBadge.style.display = 'none';
+            }
+        }
+
         if (logs.length === 0) {
             notifList.innerHTML = '<div class="notif-empty">Nenhuma notificação no momento.</div>';
-            if (notifBadge) notifBadge.style.display = 'none';
-        } else {
-            if (notifBadge) {
-                notifBadge.style.display = 'flex';
-                notifBadge.innerText = logs.length;
-            }
-            logs.forEach(log => {
-                const isError = log.status_entrega === 'FALHA';
-                const div = document.createElement('div');
-                div.className = 'notif-item';
-                div.innerHTML = `
-                    <div class="notif-item-header">
-                        <span class="notif-item-title">${log.tipo_notificacao} - ${log.gatilho_regra}</span>
-                        <span class="notif-item-time">${log.data_envio.split(' ')[0]}</span>
-                    </div>
-                    <div class="notif-item-detail">
-                        Para: ${log.destinatario_email}
-                    </div>
-                    <div>
-                        <span class="${isError ? 'notif-status-falha' : 'notif-status-enviado'}">
-                            ${isError ? '<i class="fas fa-times-circle"></i> FALHA' : '<i class="fas fa-check-circle"></i> ENVIADO'}
-                        </span>
-                        ${isError && log.erro_detalhe ? `<div style="font-size:10px; color:var(--danger); margin-top:4px;">Erro: ${log.erro_detalhe}</div>` : ''}
-                    </div>
-                `;
-                notifList.appendChild(div);
-            });
+            return;
         }
+
+        logs.forEach(log => {
+            const isError = log.status_entrega === 'FALHA';
+            const isRead = !!log.lida;
+            const div = document.createElement('div');
+            div.className = `notif-item${isRead ? ' read' : ''}`;
+
+            const gatilhoLabel = {
+                'SOLICITACAO_VERBA':    '💸 Solicitação de Verba',
+                'ATLETA_BARRADO':       '⚠️ Atleta Irregular',
+                'CONTRATO_VENCENDO':    '📄 Contrato Vencendo',
+                'TENTATIVA_VIOLACAO':   '🚨 Tentativa de Violação',
+                'NOVA_PARCERIA':        '🤝 Nova Parceria',
+                'STATUS_PARCERIA_JURIDICO': '📝 Atualização de Parceria'
+            }[log.gatilho_regra] || `${log.tipo_notificacao} — ${log.gatilho_regra}`;
+
+            div.innerHTML = `
+                <div class="notif-item-header">
+                    <span class="notif-item-title">${gatilhoLabel}</span>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span class="notif-item-time">${log.data_envio.substring(0, 16)}</span>
+                        ${!isRead ? `<button class="btn-mark-notif-read" data-log-id="${log.id}" title="Marcar como lida"><i class="fas fa-check"></i> Lida</button>` : `<span style="font-size:10px;color:var(--text-muted);"><i class="fas fa-check-double"></i></span>`}
+                    </div>
+                </div>
+                <div class="notif-item-detail">Para: ${log.destinatario_email}</div>
+                ${log.erro_detalhe ? `<div class="notif-item-detail" style="color:var(--text-secondary);font-size:11px;">${log.erro_detalhe}</div>` : ''}
+                <div>
+                    <span class="${isError ? 'notif-status-falha' : 'notif-status-enviado'}">
+                        ${isError ? '<i class="fas fa-times-circle"></i> FALHA' : '<i class="fas fa-check-circle"></i> ENVIADO'}
+                    </span>
+                </div>
+            `;
+
+            notifList.appendChild(div);
+        });
+
+        // Listener: Marcar notificação como lida
+        notifList.querySelectorAll('.btn-mark-notif-read').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const logId = btn.getAttribute('data-log-id');
+                const logEntry = DB.logs_notificacoes.find(l => l.id === logId);
+                if (logEntry) {
+                    logEntry.lida = true;
+                    logSQL(`UPDATE logs_notificacoes SET lida = TRUE WHERE id = '${logId}'; -- [SIMULADO: campo lida não é auditável]`, 'query');
+                    logSQL(`Notificação '${logEntry.gatilho_regra}' marcada como lida pelo usuário '${currentUser ? currentUser.nome : 'Sistema'}'.`, 'success');
+                    renderNotifications();
+                }
+            });
+        });
     }
 
     // Comportamento do Drawer de Notificações
@@ -3403,5 +3496,42 @@ document.addEventListener('DOMContentLoaded', () => {
     logSQL('SGBD Iniciado. PostgreSQL v16.1 (Debian) em x86_64-pc-linux-gnu.', 'success');
     logSQL('Executando scripts do schema.sql...', 'success');
     logSQL('Compilando triggers.sql: 7 Regras de Negócio rigidamente asseguradas na camada de dados.', 'success');
+
+    // --- CRON SIMULADO: CONTRATO_VENCENDO (Dispara ao abrir o painel) ---
+    // Simula o job diário que verifica contratos vencendo em 30 dias.
+    function checkContratoVencendoNotifications() {
+        const hoje = new Date();
+        const limite30Dias = new Date(hoje);
+        limite30Dias.setDate(hoje.getDate() + 30);
+
+        DB.documentos_contratos.forEach(dc => {
+            if (!dc.data_vencimento) return;
+            const venc = new Date(dc.data_vencimento);
+            const diffDays = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0 && diffDays <= 30) {
+                // Gera notificação apenas se ainda não existe uma para este contrato hoje
+                const jaNotificado = DB.logs_notificacoes.some(l =>
+                    l.gatilho_regra === 'CONTRATO_VENCENDO' &&
+                    l.erro_detalhe && l.erro_detalhe.includes(dc.id) &&
+                    l.data_envio.startsWith(hoje.toISOString().substring(0, 10))
+                );
+                if (!jaNotificado) {
+                    const parceiro = DB.parceiros_patrocinadores.find(p => p.id === dc.parceiro_id);
+                    DB.logs_notificacoes.push({
+                        id: 'log_' + Date.now() + '_' + dc.id,
+                        usuario_id: 'u1',
+                        tipo_notificacao: 'Sistema',
+                        gatilho_regra: 'CONTRATO_VENCENDO',
+                        destinatario_email: 'presidencia@atleticalup.com.br',
+                        status_entrega: 'ENVIADO',
+                        data_envio: hoje.toISOString().replace('T', ' ').substring(0, 16),
+                        erro_detalhe: `[doc:${dc.id}] Contrato "${dc.titulo}"${parceiro ? ` (${parceiro.nome_empresa})` : ''} vence em ${diffDays} dia(s), em ${dc.data_vencimento}.`,
+                        lida: false
+                    });
+                    logSQL(`CRON CONTRATO_VENCENDO: Alerta gerado para o contrato '${dc.titulo}' (vence em ${diffDays} dia(s)).`, 'trigger');
+                }
+            }
+        });
+    }
 });
 

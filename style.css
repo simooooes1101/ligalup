@@ -1646,3 +1646,27 @@ option:hover {
 .action-day-card.post-type {
     border-left: 3.5px solid #ea580c;
 }
+
+/* --- NOTIFICAÇÕES LIDAS E MINI-BOTÃO --- */
+.notif-item.read {
+    opacity: 0.55;
+    background: rgba(255, 255, 255, 0.01);
+}
+.btn-mark-notif-read {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-smooth);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.btn-mark-notif-read:hover {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+}
+
