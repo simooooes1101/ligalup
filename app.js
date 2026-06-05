@@ -97,6 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingRoster = []; // Lista de objetos { atletaId, funcao, observacao } na escalação pendente
     let selectedFinanceEventId = '';
 
+    // Estado do calendário do dashboard (Fase 5)
+    let calendarCurrentDate = new Date();
+    let calendarSelectedDate = new Date();
+
     // URL base do backend (tenta localhost em dev)
     const API_BASE = 'http://localhost:5000';
     let backendOnline = false;
