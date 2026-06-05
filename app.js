@@ -2538,6 +2538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 else netOutflow += record.valor;
 
                 tr.innerHTML = `
+                    <td><code>${record.id}</code></td>
                     <td>${record.data_competencia}</td>
                     <td>
                         <span class="badge ${record.tipo === 'Entrada' ? 'badge-success' : 'badge-danger'}">
@@ -2557,7 +2558,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <button class="btn btn-secondary btn-reconcile" data-lf-id="${record.id}" style="padding:4px 8px; font-size:11px; background:var(--accent-glow); color:var(--accent);">
                                     Conciliar
                                 </button>
-                            ` : ''}
+                            ` : `
+                                <button class="btn btn-secondary btn-estorno-row" data-lf-id="${record.id}" style="padding:4px 8px; font-size:11px; border-color:var(--danger); color:var(--danger);">
+                                    Estornar
+                                </button>
+                            `}
                             <button class="btn btn-secondary btn-delete-lf" data-lf-id="${record.id}" style="padding:4px 8px; font-size:11px;">
                                 Excluir
                             </button>
@@ -2584,6 +2589,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.addEventListener('click', () => {
                     const lfId = btn.getAttribute('data-lf-id');
                     DB_Engine.mutateFinanceRecord(lfId, 'update', { status_conciliacao: true });
+                });
+            });
+
+            // Inline Estornar trigger button click
+            document.querySelectorAll('.btn-estorno-row').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const lfId = btn.getAttribute('data-lf-id');
+                    if (confirm(`Tem certeza de que deseja realizar o estorno automático para o lançamento conciliado '${lfId}'? Isso gerará uma transação oposta de compensação.`)) {
+                        performEstorno(lfId);
+                    }
                 });
             });
 
@@ -2866,11 +2881,8 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllUI();
     });
 
-    // Event Handler: Lançamento de Estorno (Forçando correção manual - RN-FIN-01)
-    document.getElementById('btn-estorno-finance').addEventListener('click', () => {
-        const idToEstorno = prompt("Digite o nome ou ID do Lançamento Conciliado que deseja estornar (ex: 'lf1'):");
-        if (!idToEstorno) return;
-
+    // Função auxiliar para performar o estorno
+    function performEstorno(idToEstorno) {
         const record = DB.lancamentos_financeiros.find(r => r.id === idToEstorno);
         if (!record) {
             alert("Lançamento não localizado!");
@@ -2895,6 +2907,13 @@ document.addEventListener('DOMContentLoaded', () => {
         logSQL(`INSERT INTO lancamentos_financeiros (tipo, categoria, valor, status_conciliacao) VALUES ('${estornoTipo}', 'ESTORNO [${record.id}]', ${estornoVal}, FALSE);`, 'query');
         logSQL(`Compensação atômica realizada. Estorno injetado com sucesso no caixa geral para anular o lançamento imutável [ID: ${record.id}].`, 'success');
         refreshAllUI();
+    }
+
+    // Event Handler: Lançamento de Estorno (Forçando correção manual - RN-FIN-01)
+    document.getElementById('btn-estorno-finance').addEventListener('click', () => {
+        const idToEstorno = prompt("Digite o nome ou ID do Lançamento Conciliado que deseja estornar (ex: 'lf1'):");
+        if (!idToEstorno) return;
+        performEstorno(idToEstorno);
     });
 
     // RENDER 6: PARTNERS & LEGAL (GED Repositories)
