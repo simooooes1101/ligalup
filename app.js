@@ -107,6 +107,8 @@ chat_messages: [
         chat_attachments: [],
     };
 
+    window.DB = DB;
+    
     // Usuário logado — preenchido após autenticação
     let currentUser = null;
 
@@ -3664,7 +3666,7 @@ const ChatModule = (() => {
 
   async function loadAllUsers() {
 
-  state.allUsers = DB.usuarios
+  state.allUsers = window.DB.usuarios
       .filter(u => u.status === true)
       .map(u => ({
           id: u.id,
