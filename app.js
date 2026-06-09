@@ -3764,7 +3764,15 @@ const ChatModule = (() => {
     await openConversation(conv.id);
     return conv.id;
   }
+function scrollToBottom() {
 
+    const container = document.getElementById('chat-messages');
+
+    if (!container) return;
+
+    container.scrollTop = container.scrollHeight;
+
+}
   async function openConversation(conversationId) {
     // Unsubscribe da conversa anterior
     state.realtimeChannel = null;
