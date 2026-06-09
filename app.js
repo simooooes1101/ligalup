@@ -3558,4 +3558,1197 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+// =============================================================================
+// MÓDULO DE COMUNICAÇÃO INTERNA — chat_module.js
+// Adicionar ao final do app.js existente (antes do último fechamento de escopo)
+// Requer: variável global `supabase` e `currentUser` já definidas no app.js
+// =============================================================================
 
+const ChatModule = (() => {
+
+  // ---------------------------------------------------------------------------
+  // Estado interno do módulo
+  // ---------------------------------------------------------------------------
+  let state = {
+    activeConversationId: null,
+    conversations: [],
+    messages: {},            // { [conversationId]: Message[] }
+    realtimeChannel: null,   // subscription ativa de mensagens
+    notifChannel: null,      // subscription ativa de notificações
+    mentionQuery: '',
+    mentionCandidates: [],
+    allUsers: [],            // cache de usuários para @menção
+    isLoadingMessages: false,
+    messageCursors: {},      // { [conversationId]: { from: N, to: N } } — paginação
+    MESSAGES_PER_PAGE: 40,
+  };
+
+  // ---------------------------------------------------------------------------
+  // INICIALIZAÇÃO
+  // ---------------------------------------------------------------------------
+
+  async function init() {
+    await loadAllUsers();
+    await loadConversations();
+    renderConversationList();
+    subscribeToNotifications();
+    updateUnreadBadge();
+    bindGlobalEvents();
+    console.log('[ChatModule] Inicializado com sucesso.');
+  }
+
+  // ---------------------------------------------------------------------------
+  // USUÁRIOS — cache para menções e exibição de nomes
+  // ---------------------------------------------------------------------------
+
+  async function loadAllUsers() {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, nome, cargo, diretoria')
+      .eq('status', true)
+      .order('nome');
+    if (error) { console.error('[Chat] Erro ao carregar usuários:', error); return; }
+    state.allUsers = data || [];
+  }
+
+  function getUserById(id) {
+    return state.allUsers.find(u => u.id === id) || { nome: 'Usuário', cargo: '', diretoria: '' };
+  }
+
+  function getInitials(nome) {
+    return (nome || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
+  }
+
+  // ---------------------------------------------------------------------------
+  // CONVERSAS — listar, criar, abrir
+  // ---------------------------------------------------------------------------
+
+  async function loadConversations() {
+    const { data, error } = await supabase.rpc('get_conversation_preview', {
+      p_user_id: currentUser.id
+    });
+    if (error) { console.error('[Chat] Erro ao carregar conversas:', error); return; }
+    state.conversations = data || [];
+  }
+
+  async function openOrCreateDirectConversation(targetUserId) {
+    const { data, error } = await supabase.rpc('get_or_create_direct_conversation', {
+      p_user_a: currentUser.id,
+      p_user_b: targetUserId
+    });
+    if (error) { console.error('[Chat] Erro ao abrir conversa direta:', error); return; }
+    await loadConversations();
+    renderConversationList();
+    await openConversation(data);
+    navigateToChat();
+  }
+
+  async function createGroup(name, description, memberIds) {
+    // Criar conversa
+    const { data: conv, error: convErr } = await supabase
+      .from('chat_conversations')
+      .insert({ type: 'group', name, description, created_by: currentUser.id })
+      .select('id')
+      .single();
+    if (convErr) { console.error('[Chat] Erro ao criar grupo:', convErr); return null; }
+
+    // Adicionar membros (incluindo o criador como admin)
+    const members = [
+      { conversation_id: conv.id, user_id: currentUser.id, is_admin: true },
+      ...memberIds.filter(id => id !== currentUser.id).map(id => ({
+        conversation_id: conv.id, user_id: id, is_admin: false
+      }))
+    ];
+    const { error: memErr } = await supabase
+      .from('chat_conversation_members')
+      .insert(members);
+    if (memErr) { console.error('[Chat] Erro ao adicionar membros:', memErr); return null; }
+
+    await loadConversations();
+    renderConversationList();
+    await openConversation(conv.id);
+    return conv.id;
+  }
+
+  async function openConversation(conversationId) {
+    // Unsubscribe da conversa anterior
+    if (state.realtimeChannel) {
+      await supabase.removeChannel(state.realtimeChannel);
+      state.realtimeChannel = null;
+    }
+
+    state.activeConversationId = conversationId;
+    state.isLoadingMessages = true;
+
+    // Marcar mensagens como lidas imediatamente
+    await supabase.rpc('mark_conversation_read', {
+      p_conversation_id: conversationId,
+      p_user_id: currentUser.id
+    });
+
+    // Carregar histórico inicial (últimas N mensagens)
+    await loadMessages(conversationId, true);
+
+    // Subscrever ao canal Realtime desta conversa
+    subscribeToConversation(conversationId);
+
+    // Atualizar UI
+    renderConversationHeader(conversationId);
+    renderMessages(conversationId);
+    updateUnreadBadge();
+    highlightActiveConversation(conversationId);
+    scrollToBottom();
+
+    state.isLoadingMessages = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // MENSAGENS — carregar, enviar, renderizar
+  // ---------------------------------------------------------------------------
+
+  async function loadMessages(conversationId, reset = false) {
+    const cursor = state.messageCursors[conversationId];
+    const from = reset ? 0 : (cursor ? cursor.to + 1 : 0);
+    const to = from + state.MESSAGES_PER_PAGE - 1;
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select(`
+        id, conversation_id, sender_id, body, sent_at, edited_at, deleted_at,
+        chat_attachments (id, file_url, file_name, file_size, mime_type),
+        chat_mentions (mentioned_user_id)
+      `)
+      .eq('conversation_id', conversationId)
+      .is('deleted_at', null)
+      .order('sent_at', { ascending: false })
+      .range(from, to);
+
+    if (error) { console.error('[Chat] Erro ao carregar mensagens:', error); return; }
+
+    const msgs = (data || []).reverse(); // mais antigas primeiro
+
+    if (reset) {
+      state.messages[conversationId] = msgs;
+    } else {
+      state.messages[conversationId] = [...msgs, ...(state.messages[conversationId] || [])];
+    }
+
+    state.messageCursors[conversationId] = { from, to };
+  }
+
+  async function sendMessage(body, attachments = []) {
+    const convId = state.activeConversationId;
+    if (!convId || !body.trim()) return;
+
+    // Extrair menções do texto (@nome)
+    const mentionedUsers = extractMentions(body);
+
+    // Inserir mensagem
+    const { data: msg, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        conversation_id: convId,
+        sender_id: currentUser.id,
+        body: body.trim()
+      })
+      .select('id')
+      .single();
+
+    if (error) { console.error('[Chat] Erro ao enviar mensagem:', error); showToast('Erro ao enviar mensagem.', 'error'); return; }
+
+    // Registrar menções
+    if (mentionedUsers.length > 0) {
+      await supabase.from('chat_mentions').insert(
+        mentionedUsers.map(uid => ({
+          message_id: msg.id,
+          mentioned_user_id: uid
+        }))
+      );
+    }
+
+    // Fazer upload de anexos (se houver)
+    for (const file of attachments) {
+      await uploadAttachment(msg.id, file);
+    }
+
+    // Limpar o input
+    document.getElementById('chat-input')?.value && (document.getElementById('chat-input').value = '');
+    clearAttachmentPreview();
+  }
+
+  async function deleteMessage(messageId) {
+    const { data, error } = await supabase.rpc('soft_delete_message', {
+      p_message_id: messageId,
+      p_user_id: currentUser.id
+    });
+    if (error || !data) {
+      showToast('Não foi possível remover a mensagem.', 'error');
+    }
+  }
+
+  async function editMessage(messageId, newBody) {
+    if (!newBody.trim()) return;
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({ body: newBody.trim(), edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('sender_id', currentUser.id);
+    if (error) showToast('Não foi possível editar a mensagem.', 'error');
+  }
+
+  // ---------------------------------------------------------------------------
+  // REALTIME — subscriptions
+  // ---------------------------------------------------------------------------
+
+  function subscribeToConversation(conversationId) {
+    state.realtimeChannel = supabase
+      .channel(`conv:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        async (payload) => {
+          // Buscar mensagem completa com anexos
+          const { data } = await supabase
+            .from('chat_messages')
+            .select(`
+              id, conversation_id, sender_id, body, sent_at, edited_at, deleted_at,
+              chat_attachments (id, file_url, file_name, file_size, mime_type)
+            `)
+            .eq('id', payload.new.id)
+            .single();
+
+          if (data) {
+            if (!state.messages[conversationId]) state.messages[conversationId] = [];
+            state.messages[conversationId].push(data);
+            appendMessageToView(data);
+
+            // Marcar como lida automaticamente se a conversa está aberta
+            if (state.activeConversationId === conversationId) {
+              await supabase.rpc('mark_conversation_read', {
+                p_conversation_id: conversationId,
+                p_user_id: currentUser.id
+              });
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          updateMessageInView(payload.new);
+        }
+      )
+      .subscribe();
+  }
+
+  function subscribeToNotifications() {
+    state.notifChannel = supabase
+      .channel(`notifs:${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_notifications',
+          filter: `recipient_id=eq.${currentUser.id}`
+        },
+        async (payload) => {
+          updateUnreadBadge();
+          await loadConversations();
+          renderConversationList();
+          // Integrar com o sistema de notificações existente no app.js
+          if (typeof appendSystemNotification === 'function') {
+            const notif = payload.new;
+            appendSystemNotification({
+              canal: 'IN_APP',
+              gatilho: `CHAT_${notif.type.toUpperCase()}`,
+              destinatario: currentUser.email,
+              status: 'ENTREGUE',
+              data: new Date().toISOString()
+            });
+          }
+        }
+      )
+      .subscribe();
+  }
+
+  // Limpar subscriptions ao sair do módulo
+  async function destroy() {
+    if (state.realtimeChannel) await supabase.removeChannel(state.realtimeChannel);
+    if (state.notifChannel) await supabase.removeChannel(state.notifChannel);
+    state.realtimeChannel = null;
+    state.notifChannel = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // ANEXOS
+  // ---------------------------------------------------------------------------
+
+  async function uploadAttachment(messageId, file) {
+    const ext = file.name.split('.').pop();
+    const path = `${currentUser.id}/${messageId}/${Date.now()}.${ext}`;
+
+    const { data, error } = await supabase.storage
+      .from('chat-attachments')
+      .upload(path, file, { contentType: file.type });
+
+    if (error) { console.error('[Chat] Erro no upload:', error); return; }
+
+    const { data: urlData } = supabase.storage
+      .from('chat-attachments')
+      .getPublicUrl(path);
+
+    await supabase.from('chat_attachments').insert({
+      message_id: messageId,
+      uploader_id: currentUser.id,
+      file_url: urlData.publicUrl,
+      file_name: file.name,
+      file_size: file.size,
+      mime_type: file.type
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // COMENTÁRIOS CONTEXTUAIS
+  // ---------------------------------------------------------------------------
+
+  async function loadContextualComments(entityType, entityId) {
+    const { data, error } = await supabase
+      .from('contextual_comments')
+      .select('id, author_id, body, created_at, edited_at')
+      .eq('entity_type', entityType)
+      .eq('entity_id', entityId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true });
+
+    if (error) { console.error('[Chat] Erro ao carregar comentários:', error); return []; }
+    return data || [];
+  }
+
+  async function postContextualComment(entityType, entityId, body) {
+    if (!body.trim()) return;
+    const { error } = await supabase.from('contextual_comments').insert({
+      entity_type: entityType,
+      entity_id: entityId,
+      author_id: currentUser.id,
+      body: body.trim()
+    });
+    if (error) { console.error('[Chat] Erro ao comentar:', error); showToast('Erro ao postar comentário.', 'error'); }
+  }
+
+  async function deleteContextualComment(commentId) {
+    const { error } = await supabase
+      .from('contextual_comments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', commentId)
+      .eq('author_id', currentUser.id);
+    if (error) showToast('Não foi possível remover o comentário.', 'error');
+  }
+
+  // ---------------------------------------------------------------------------
+  // MENÇÕES
+  // ---------------------------------------------------------------------------
+
+  function extractMentions(text) {
+    const regex = /@\[([^\]]+)\]\(([^)]+)\)/g; // formato @[Nome](uuid)
+    const ids = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      ids.push(match[2]);
+    }
+    return ids;
+  }
+
+  function renderMentionText(text) {
+    // Converte @[Nome](uuid) em <span class="chat-mention">@Nome</span>
+    return text
+      .replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="chat-mention">@$1</span>')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Reaplica as tags que geramos intencionalmente
+      .replace(/&lt;span class="chat-mention"&gt;@([^&]+)&lt;\/span&gt;/g,
+               '<span class="chat-mention">@$1</span>');
+  }
+
+  function handleMentionInput(inputEl) {
+    const val = inputEl.value;
+    const cursorPos = inputEl.selectionStart;
+    const textBefore = val.substring(0, cursorPos);
+    const atMatch = textBefore.match(/@(\w*)$/);
+
+    if (atMatch) {
+      state.mentionQuery = atMatch[1].toLowerCase();
+      state.mentionCandidates = state.allUsers.filter(u =>
+        u.id !== currentUser.id &&
+        u.nome.toLowerCase().includes(state.mentionQuery)
+      ).slice(0, 6);
+      renderMentionPicker(inputEl);
+    } else {
+      closeMentionPicker();
+    }
+  }
+
+  function renderMentionPicker(inputEl) {
+    let picker = document.getElementById('mention-picker');
+    if (!picker) {
+      picker = document.createElement('div');
+      picker.id = 'mention-picker';
+      picker.className = 'mention-picker';
+      document.getElementById('chat-input-area')?.appendChild(picker);
+    }
+
+    if (state.mentionCandidates.length === 0) {
+      picker.style.display = 'none';
+      return;
+    }
+
+    picker.innerHTML = state.mentionCandidates.map(u => `
+      <div class="mention-item" data-id="${u.id}" data-name="${u.nome}">
+        <div class="mention-avatar">${getInitials(u.nome)}</div>
+        <div class="mention-info">
+          <span class="mention-name">${u.nome}</span>
+          <span class="mention-role">${u.cargo} · ${u.diretoria}</span>
+        </div>
+      </div>
+    `).join('');
+
+    picker.querySelectorAll('.mention-item').forEach(item => {
+      item.addEventListener('click', () => {
+        insertMention(inputEl, item.dataset.id, item.dataset.name);
+        closeMentionPicker();
+      });
+    });
+
+    picker.style.display = 'block';
+  }
+
+  function insertMention(inputEl, userId, userName) {
+    const val = inputEl.value;
+    const cursorPos = inputEl.selectionStart;
+    const textBefore = val.substring(0, cursorPos);
+    const textAfter = val.substring(cursorPos);
+    const newBefore = textBefore.replace(/@\w*$/, `@[${userName}](${userId}) `);
+    inputEl.value = newBefore + textAfter;
+    inputEl.focus();
+    const newPos = newBefore.length;
+    inputEl.setSelectionRange(newPos, newPos);
+  }
+
+  function closeMentionPicker() {
+    const picker = document.getElementById('mention-picker');
+    if (picker) picker.style.display = 'none';
+    state.mentionCandidates = [];
+  }
+
+  // ---------------------------------------------------------------------------
+  // BUSCA DE MENSAGENS
+  // ---------------------------------------------------------------------------
+
+  async function searchMessages(query) {
+    if (!query || query.length < 3) return [];
+    const { data, error } = await supabase.rpc('search_messages', {
+      p_query: query,
+      p_user_id: currentUser.id,
+      p_limit: 20,
+      p_offset: 0
+    });
+    if (error) { console.error('[Chat] Erro na busca:', error); return []; }
+    return data || [];
+  }
+
+  async function searchComments(query) {
+    if (!query || query.length < 3) return [];
+    const { data, error } = await supabase.rpc('search_comments', {
+      p_query: query,
+      p_user_id: currentUser.id,
+      p_limit: 20,
+      p_offset: 0
+    });
+    if (error) { console.error('[Chat] Erro na busca de comentários:', error); return []; }
+    return data || [];
+  }
+
+  // ---------------------------------------------------------------------------
+  // BADGE DE NÃO-LIDOS — integra com #notif-badge existente
+  // ---------------------------------------------------------------------------
+
+  async function updateUnreadBadge() {
+    const { data } = await supabase
+      .from('chat_notifications')
+      .select('id', { count: 'exact' })
+      .eq('recipient_id', currentUser.id)
+      .is('read_at', null);
+
+    const count = data?.length || 0;
+
+    // Badge dedicado do chat
+    const chatBadge = document.getElementById('chat-unread-badge');
+    if (chatBadge) {
+      chatBadge.textContent = count > 99 ? '99+' : count;
+      chatBadge.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    // Integrar com o badge global de notificações já existente no app.js
+    const globalBadge = document.getElementById('notif-badge');
+    if (globalBadge && count > 0) {
+      globalBadge.style.display = 'flex';
+      // Não sobrescreve o conteúdo para não conflitar com notificações existentes
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDER — conversas
+  // ---------------------------------------------------------------------------
+
+  function renderConversationList() {
+    const container = document.getElementById('chat-conversations-list');
+    if (!container) return;
+
+    if (state.conversations.length === 0) {
+      container.innerHTML = `
+        <div class="chat-empty-state">
+          <i class="fas fa-comments"></i>
+          <p>Nenhuma conversa ainda.</p>
+          <p>Clique em <strong>Nova conversa</strong> para começar.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = state.conversations.map(conv => {
+      const isActive = conv.conversation_id === state.activeConversationId;
+      const unread = conv.unread_count || 0;
+      const lastMsg = conv.last_message_body
+        ? conv.last_message_body.substring(0, 50) + (conv.last_message_body.length > 50 ? '…' : '')
+        : 'Sem mensagens';
+      const time = conv.last_message_at
+        ? formatChatTime(new Date(conv.last_message_at))
+        : '';
+      const avatarText = getInitials(conv.conv_name || '?');
+      const isGroup = conv.conv_type === 'group';
+
+      return `
+        <div class="chat-conv-item ${isActive ? 'active' : ''}"
+             data-conv-id="${conv.conversation_id}">
+          <div class="chat-conv-avatar ${isGroup ? 'group' : ''}">
+            ${isGroup ? '<i class="fas fa-users"></i>' : avatarText}
+          </div>
+          <div class="chat-conv-info">
+            <div class="chat-conv-header">
+              <span class="chat-conv-name">${escapeHtml(conv.conv_name || 'Conversa')}</span>
+              <span class="chat-conv-time">${time}</span>
+            </div>
+            <div class="chat-conv-preview">
+              <span class="chat-conv-last">${escapeHtml(lastMsg)}</span>
+              ${unread > 0 ? `<span class="chat-unread-dot">${unread}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Bind de cliques
+    container.querySelectorAll('.chat-conv-item').forEach(item => {
+      item.addEventListener('click', () => {
+        openConversation(item.dataset.convId);
+      });
+    });
+  }
+
+  function highlightActiveConversation(conversationId) {
+    document.querySelectorAll('.chat-conv-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.convId === conversationId);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDER — mensagens
+  // ---------------------------------------------------------------------------
+
+  function renderMessages(conversationId) {
+    const container = document.getElementById('chat-messages-container');
+    if (!container) return;
+
+    const msgs = state.messages[conversationId] || [];
+
+    if (msgs.length === 0) {
+      container.innerHTML = `
+        <div class="chat-empty-messages">
+          <i class="fas fa-comment-dots"></i>
+          <p>Nenhuma mensagem ainda. Seja o primeiro a escrever!</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = msgs.map(msg => renderMessageBubble(msg)).join('');
+    bindMessageActions();
+  }
+
+  function renderMessageBubble(msg) {
+    const isOwn = msg.sender_id === currentUser.id;
+    const user = getUserById(msg.sender_id);
+    const time = formatChatTime(new Date(msg.sent_at));
+    const edited = msg.edited_at ? '<span class="chat-edited-tag">(editado)</span>' : '';
+    const safeBody = renderMentionText(escapeHtml(msg.body || ''));
+
+    const attachmentsHtml = (msg.chat_attachments || []).map(att => {
+      const isImage = att.mime_type?.startsWith('image/');
+      return isImage
+        ? `<a href="${att.file_url}" target="_blank" class="chat-attachment-img">
+             <img src="${att.file_url}" alt="${escapeHtml(att.file_name)}" loading="lazy">
+           </a>`
+        : `<a href="${att.file_url}" target="_blank" class="chat-attachment-file">
+             <i class="fas fa-paperclip"></i>
+             <span>${escapeHtml(att.file_name)}</span>
+             <span class="chat-file-size">${formatFileSize(att.file_size)}</span>
+           </a>`;
+    }).join('');
+
+    const actionsHtml = isOwn ? `
+      <div class="chat-msg-actions">
+        <button class="chat-msg-btn" data-action="edit" data-id="${msg.id}" title="Editar">
+          <i class="fas fa-pencil-alt"></i>
+        </button>
+        <button class="chat-msg-btn danger" data-action="delete" data-id="${msg.id}" title="Remover">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>` : '';
+
+    return `
+      <div class="chat-msg ${isOwn ? 'own' : 'other'}" data-msg-id="${msg.id}">
+        ${!isOwn ? `
+          <div class="chat-msg-avatar">${getInitials(user.nome)}</div>` : ''}
+        <div class="chat-msg-content">
+          ${!isOwn ? `<span class="chat-msg-author">${escapeHtml(user.nome)}</span>` : ''}
+          <div class="chat-msg-bubble">
+            <p class="chat-msg-text">${safeBody}</p>
+            ${attachmentsHtml}
+            <span class="chat-msg-time">${time} ${edited}</span>
+          </div>
+          ${actionsHtml}
+        </div>
+      </div>`;
+  }
+
+  function appendMessageToView(msg) {
+    const container = document.getElementById('chat-messages-container');
+    if (!container) return;
+
+    // Remove empty state se existir
+    const emptyState = container.querySelector('.chat-empty-messages');
+    if (emptyState) emptyState.remove();
+
+    const div = document.createElement('div');
+    div.innerHTML = renderMessageBubble(msg);
+    container.appendChild(div.firstElementChild);
+    bindMessageActions();
+    scrollToBottom();
+  }
+
+  function updateMessageInView(updatedMsg) {
+    const el = document.querySelector(`[data-msg-id="${updatedMsg.id}"]`);
+    if (!el) return;
+
+    const bodyEl = el.querySelector('.chat-msg-text');
+    if (bodyEl) bodyEl.innerHTML = renderMentionText(escapeHtml(updatedMsg.body || ''));
+
+    const timeEl = el.querySelector('.chat-msg-time');
+    if (timeEl && updatedMsg.edited_at) {
+      timeEl.innerHTML = `${formatChatTime(new Date(updatedMsg.sent_at))} <span class="chat-edited-tag">(editado)</span>`;
+    }
+  }
+
+  function renderConversationHeader(conversationId) {
+    const conv = state.conversations.find(c => c.conversation_id === conversationId);
+    const headerEl = document.getElementById('chat-conv-header-title');
+    const subtitleEl = document.getElementById('chat-conv-header-subtitle');
+    if (!conv || !headerEl) return;
+
+    headerEl.textContent = conv.conv_name || 'Conversa';
+    if (subtitleEl) {
+      subtitleEl.textContent = conv.conv_type === 'group'
+        ? `${conv.member_count || 0} participantes`
+        : conv.conv_type === 'direct' ? 'Conversa direta' : '';
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDER — comentários contextuais
+  // ---------------------------------------------------------------------------
+
+  async function renderContextualCommentPanel(entityType, entityId, containerEl) {
+    if (!containerEl) return;
+
+    const comments = await loadContextualComments(entityType, entityId);
+
+    containerEl.innerHTML = `
+      <div class="ctx-comments-panel">
+        <div class="ctx-comments-header">
+          <i class="fas fa-comment-alt"></i>
+          <span>Comentários</span>
+          <span class="ctx-comments-count">${comments.length}</span>
+        </div>
+        <div class="ctx-comments-list" id="ctx-comments-${entityType}-${entityId}">
+          ${comments.length === 0
+            ? '<p class="ctx-no-comments">Nenhum comentário ainda.</p>'
+            : comments.map(c => renderCommentItem(c)).join('')}
+        </div>
+        <div class="ctx-comment-form">
+          <textarea
+            id="ctx-input-${entityType}-${entityId}"
+            class="ctx-comment-input"
+            placeholder="Escreva um comentário... (suporta @menção)"
+            rows="2"
+            maxlength="2000"
+          ></textarea>
+          <button class="btn btn-accent ctx-comment-submit"
+                  data-entity-type="${entityType}"
+                  data-entity-id="${entityId}">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>`;
+
+    // Bind do envio de comentários
+    const submitBtn = containerEl.querySelector('.ctx-comment-submit');
+    const inputEl = containerEl.querySelector(`#ctx-input-${entityType}-${entityId}`);
+
+    if (submitBtn && inputEl) {
+      submitBtn.addEventListener('click', async () => {
+        await postContextualComment(entityType, entityId, inputEl.value);
+        inputEl.value = '';
+        await renderContextualCommentPanel(entityType, entityId, containerEl);
+      });
+
+      inputEl.addEventListener('input', () => handleMentionInput(inputEl));
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) submitBtn.click();
+      });
+    }
+
+    // Bind de ações de comentários
+    containerEl.querySelectorAll('.ctx-comment-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remover este comentário?')) return;
+        await deleteContextualComment(btn.dataset.id);
+        await renderContextualCommentPanel(entityType, entityId, containerEl);
+      });
+    });
+  }
+
+  function renderCommentItem(comment) {
+    const user = getUserById(comment.author_id);
+    const isOwn = comment.author_id === currentUser.id;
+    const time = formatChatTime(new Date(comment.created_at));
+
+    return `
+      <div class="ctx-comment-item" data-comment-id="${comment.id}">
+        <div class="ctx-comment-avatar">${getInitials(user.nome)}</div>
+        <div class="ctx-comment-body">
+          <div class="ctx-comment-meta">
+            <span class="ctx-comment-author">${escapeHtml(user.nome)}</span>
+            <span class="ctx-comment-time">${time}</span>
+            ${isOwn ? `<button class="ctx-comment-delete" data-id="${comment.id}" title="Remover">
+              <i class="fas fa-times"></i>
+            </button>` : ''}
+          </div>
+          <p class="ctx-comment-text">${renderMentionText(escapeHtml(comment.body))}</p>
+        </div>
+      </div>`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // BIND DE EVENTOS — UI
+  // ---------------------------------------------------------------------------
+
+  function bindGlobalEvents() {
+    // Envio de mensagem ao pressionar Enter (Shift+Enter = nova linha)
+    const inputEl = document.getElementById('chat-input');
+    if (inputEl) {
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSendMessage();
+        }
+        if (e.key === 'Escape') closeMentionPicker();
+      });
+      inputEl.addEventListener('input', () => handleMentionInput(inputEl));
+    }
+
+    // Botão enviar
+    document.getElementById('btn-send-message')
+      ?.addEventListener('click', handleSendMessage);
+
+    // Botão nova conversa
+    document.getElementById('btn-new-conversation')
+      ?.addEventListener('click', () => openNewConversationModal());
+
+    // Botão novo grupo
+    document.getElementById('btn-new-group')
+      ?.addEventListener('click', () => openNewGroupModal());
+
+    // Input de busca de mensagens
+    const searchInput = document.getElementById('chat-search-input');
+    if (searchInput) {
+      let debounceTimer;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+          const results = await searchMessages(searchInput.value);
+          renderSearchResults(results);
+        }, 300);
+      });
+    }
+
+    // Attachment upload
+    document.getElementById('btn-attach-file')
+      ?.addEventListener('click', () => document.getElementById('chat-file-input')?.click());
+
+    document.getElementById('chat-file-input')
+      ?.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files || []);
+        files.forEach(f => addAttachmentPreview(f));
+        e.target.value = '';
+      });
+
+    // Carregar mensagens mais antigas (scroll topo)
+    const messagesContainer = document.getElementById('chat-messages-container');
+    if (messagesContainer) {
+      messagesContainer.addEventListener('scroll', async () => {
+        if (messagesContainer.scrollTop === 0 && state.activeConversationId && !state.isLoadingMessages) {
+          state.isLoadingMessages = true;
+          const prevScrollHeight = messagesContainer.scrollHeight;
+          await loadMessages(state.activeConversationId, false);
+          renderMessages(state.activeConversationId);
+          // Manter posição de scroll
+          messagesContainer.scrollTop = messagesContainer.scrollHeight - prevScrollHeight;
+          state.isLoadingMessages = false;
+        }
+      });
+    }
+  }
+
+  function bindMessageActions() {
+    document.querySelectorAll('[data-action="delete"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remover esta mensagem?')) return;
+        await deleteMessage(btn.dataset.id);
+      });
+    });
+
+    document.querySelectorAll('[data-action="edit"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const msgEl = document.querySelector(`[data-msg-id="${btn.dataset.id}"]`);
+        const textEl = msgEl?.querySelector('.chat-msg-text');
+        if (!textEl) return;
+
+        const original = state.messages[state.activeConversationId]
+          ?.find(m => m.id === btn.dataset.id)?.body || '';
+
+        textEl.innerHTML = `
+          <textarea class="chat-edit-input">${escapeHtml(original)}</textarea>
+          <div class="chat-edit-actions">
+            <button class="btn btn-accent" style="font-size:11px; padding:4px 10px;"
+                    onclick="ChatModule.confirmEdit('${btn.dataset.id}', this)">
+              <i class="fas fa-check"></i> Salvar
+            </button>
+            <button class="btn btn-secondary" style="font-size:11px; padding:4px 10px;"
+                    onclick="this.closest('[data-msg-id]').querySelector('.chat-msg-text').innerHTML = ChatModule._getOriginalBody('${btn.dataset.id}')">
+              Cancelar
+            </button>
+          </div>`;
+      });
+    });
+  }
+
+  async function handleSendMessage() {
+    const inputEl = document.getElementById('chat-input');
+    const body = inputEl?.value?.trim();
+    const pendingFiles = getPendingAttachments();
+    if (!body && pendingFiles.length === 0) return;
+    await sendMessage(body || '', pendingFiles);
+  }
+
+  // ---------------------------------------------------------------------------
+  // MODAIS — nova conversa / grupo
+  // ---------------------------------------------------------------------------
+
+  function openNewConversationModal() {
+    const othersHtml = state.allUsers
+      .filter(u => u.id !== currentUser.id)
+      .map(u => `
+        <div class="user-picker-item" data-id="${u.id}">
+          <div class="user-picker-avatar">${getInitials(u.nome)}</div>
+          <div class="user-picker-info">
+            <span>${escapeHtml(u.nome)}</span>
+            <small>${u.cargo} · ${u.diretoria}</small>
+          </div>
+        </div>`).join('');
+
+    showModal('Nova Conversa Direta', `
+      <p style="font-size:12px; color:var(--text-secondary); margin-bottom:16px;">
+        Selecione um membro para iniciar uma conversa privada.
+      </p>
+      <div class="user-picker-list">${othersHtml}</div>
+    `, null);
+
+    document.querySelectorAll('.user-picker-item').forEach(item => {
+      item.addEventListener('click', async () => {
+        closeModal();
+        await openOrCreateDirectConversation(item.dataset.id);
+      });
+    });
+  }
+
+  function openNewGroupModal() {
+    const usersCheckboxHtml = state.allUsers
+      .filter(u => u.id !== currentUser.id)
+      .map(u => `
+        <label class="group-member-option">
+          <input type="checkbox" value="${u.id}">
+          <div class="user-picker-avatar small">${getInitials(u.nome)}</div>
+          <span>${escapeHtml(u.nome)} — ${u.cargo}</span>
+        </label>`).join('');
+
+    showModal('Criar Novo Grupo', `
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Nome do Grupo</label>
+        <input type="text" id="modal-group-name" class="form-control" placeholder="Ex: Planejamento de Eventos" maxlength="80">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Descrição (opcional)</label>
+        <input type="text" id="modal-group-desc" class="form-control" placeholder="Sobre o que é este grupo?" maxlength="200">
+      </div>
+      <div class="form-group">
+        <label>Participantes</label>
+        <div class="group-member-list">${usersCheckboxHtml}</div>
+      </div>
+    `, async () => {
+      const name = document.getElementById('modal-group-name')?.value?.trim();
+      if (!name) { showToast('Informe o nome do grupo.', 'error'); return; }
+      const description = document.getElementById('modal-group-desc')?.value?.trim();
+      const memberIds = [...document.querySelectorAll('.group-member-option input:checked')]
+        .map(el => el.value);
+      if (memberIds.length === 0) { showToast('Adicione pelo menos um participante.', 'error'); return; }
+      closeModal();
+      await createGroup(name, description, memberIds);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // ANEXOS — preview antes de enviar
+  // ---------------------------------------------------------------------------
+
+  let _pendingFiles = [];
+
+  function addAttachmentPreview(file) {
+    _pendingFiles.push(file);
+    const preview = document.getElementById('chat-attachment-preview');
+    if (!preview) return;
+
+    const item = document.createElement('div');
+    item.className = 'attachment-preview-item';
+    item.dataset.name = file.name;
+    item.innerHTML = `
+      <i class="fas ${file.type.startsWith('image/') ? 'fa-image' : 'fa-file'}"></i>
+      <span>${escapeHtml(file.name)}</span>
+      <button class="remove-attachment" data-name="${file.name}">
+        <i class="fas fa-times"></i>
+      </button>`;
+    item.querySelector('.remove-attachment').addEventListener('click', () => {
+      _pendingFiles = _pendingFiles.filter(f => f.name !== file.name);
+      item.remove();
+    });
+    preview.appendChild(item);
+    preview.style.display = 'flex';
+  }
+
+  function getPendingAttachments() { return [..._pendingFiles]; }
+
+  function clearAttachmentPreview() {
+    _pendingFiles = [];
+    const preview = document.getElementById('chat-attachment-preview');
+    if (preview) { preview.innerHTML = ''; preview.style.display = 'none'; }
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDER — resultados de busca
+  // ---------------------------------------------------------------------------
+
+  function renderSearchResults(results) {
+    const container = document.getElementById('chat-search-results');
+    if (!container) return;
+
+    if (!results || results.length === 0) {
+      container.innerHTML = '<p class="chat-no-results">Nenhum resultado encontrado.</p>';
+      return;
+    }
+
+    container.innerHTML = results.map(r => `
+      <div class="chat-search-result-item" data-conv-id="${r.conversation_id}">
+        <span class="result-sender">${escapeHtml(r.sender_name)}</span>
+        <p class="result-body">${escapeHtml(r.body.substring(0, 100))}${r.body.length > 100 ? '…' : ''}</p>
+        <span class="result-time">${formatChatTime(new Date(r.sent_at))}</span>
+      </div>`).join('');
+
+    container.querySelectorAll('.chat-search-result-item').forEach(item => {
+      item.addEventListener('click', () => openConversation(item.dataset.convId));
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // UTILITÁRIOS
+  // ---------------------------------------------------------------------------
+
+  function navigateToChat() {
+    // Acionar o clique no item de navegação do chat (mesmo mecanismo do app.js existente)
+    const navItem = document.querySelector('[data-target="mod-comunicacao"]');
+    if (navItem) navItem.click();
+  }
+
+  function scrollToBottom() {
+    const el = document.getElementById('chat-messages-container');
+    if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+  }
+
+  function formatChatTime(date) {
+    const now = new Date();
+    const diff = now - date;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `${mins}min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d`;
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1048576) return `${Math.round(bytes / 1024)}KB`;
+    return `${(bytes / 1048576).toFixed(1)}MB`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // showModal e closeModal — integra com o padrão modal do app.js se existir,
+  // ou cria um modal simples
+  function showModal(title, bodyHtml, onConfirm) {
+    let modal = document.getElementById('chat-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'chat-modal';
+      modal.className = 'chat-modal-overlay';
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div class="chat-modal-box glass-card">
+        <div class="chat-modal-header">
+          <h3 style="font-family:var(--font-heading); margin:0; font-size:16px;">${title}</h3>
+          <button onclick="ChatModule.closeModal()" class="notif-close-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="chat-modal-body">${bodyHtml}</div>
+        ${onConfirm ? `
+          <div class="chat-modal-footer">
+            <button class="btn btn-secondary" onclick="ChatModule.closeModal()">Cancelar</button>
+            <button class="btn btn-accent" id="chat-modal-confirm"><i class="fas fa-check"></i> Confirmar</button>
+          </div>` : ''}
+      </div>`;
+    modal.style.display = 'flex';
+    if (onConfirm) {
+      document.getElementById('chat-modal-confirm')
+        ?.addEventListener('click', onConfirm);
+    }
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('chat-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function showToast(message, type = 'info') {
+    // Integrar com o sistema de feedback existente no app.js se disponível
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast(message, type);
+      return;
+    }
+    // Fallback simples
+    const toast = document.createElement('div');
+    toast.className = `chat-toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  // Expor métodos necessários para inline handlers de template
+  function confirmEdit(messageId, btnEl) {
+    const inputEl = btnEl.closest('.chat-msg-text')?.querySelector('.chat-edit-input');
+    if (inputEl) editMessage(messageId, inputEl.value);
+  }
+
+  function _getOriginalBody(messageId) {
+    const msg = state.messages[state.activeConversationId]?.find(m => m.id === messageId);
+    return msg ? renderMentionText(escapeHtml(msg.body)) : '';
+  }
+
+  // ---------------------------------------------------------------------------
+  // API PÚBLICA
+  // ---------------------------------------------------------------------------
+
+  return {
+    init,
+    destroy,
+    openConversation,
+    openOrCreateDirectConversation,
+    createGroup,
+    sendMessage,
+    searchMessages,
+    searchComments,
+    loadContextualComments,
+    postContextualComment,
+    deleteContextualComment,
+    renderContextualCommentPanel,
+    updateUnreadBadge,
+    closeModal,
+    confirmEdit,
+    _getOriginalBody,
+  };
+
+})();
+
+// =============================================================================
+// INTEGRAÇÃO COM O app.js EXISTENTE
+// =============================================================================
+
+// Inicializar o módulo quando a seção de comunicação for ativada
+// Adicionar ao listener de navegação existente no app.js:
+//
+//   navLinks.forEach(link => {
+//     link.addEventListener('click', () => {
+//       ...
+//       if (target === 'mod-comunicacao' && currentUser) {
+//         ChatModule.init();
+//       }
+//     });
+//   });
+
+// Expõe globalmente para uso em onclick inline de templates
+window.ChatModule = ChatModule;
