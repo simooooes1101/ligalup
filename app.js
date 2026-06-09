@@ -1088,18 +1088,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const navItems = document.querySelectorAll('.nav-item');
     const sections = document.querySelectorAll('.module-section');
 
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const targetSection = item.getAttribute('data-target');
+    let prevTarget = null;
+navItems.forEach(item => {
+    item.addEventListener('click', () => {
+        const targetSection = item.getAttribute('data-target');
 
-            navItems.forEach(n => n.classList.remove('active'));
-            sections.forEach(s => s.classList.remove('active'));
+        navItems.forEach(n => n.classList.remove('active'));
+        sections.forEach(s => s.classList.remove('active'));
 
-            item.classList.add('active');
-            document.getElementById(targetSection).classList.add('active');
-            logSQL(`Navegação: Acessou módulo '${item.innerText.trim()}'`, 'query');
-        });
+        item.classList.add('active');
+        document.getElementById(targetSection).classList.add('active');
+        logSQL(`Navegação: Acessou módulo '${item.innerText.trim()}'`, 'query');
+
+        // Inicializar chat ao entrar no módulo
+        if (targetSection === 'mod-comunicacao' && currentUser) {
+            ChatModule.init();
+            document.getElementById('chat-no-conv').style.display  = 'flex';
+            document.getElementById('chat-active-conv').style.display = 'none';
+        }
+
+        // Destruir subscriptions Realtime ao sair do módulo
+        if (prevTarget === 'mod-comunicacao' && targetSection !== 'mod-comunicacao') {
+            ChatModule.destroy();
+        }
+
+        prevTarget = targetSection;
     });
+});
 
     // Close Error Overlay Modal
     document.getElementById('btn-close-error').addEventListener('click', () => {
@@ -3511,7 +3526,34 @@ document.addEventListener('DOMContentLoaded', () => {
         // Atualiza a reatividade do calendário do dashboard
         renderDashboardCalendar();
     }
+// Bind global para comentários contextuais em qualquer módulo
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.ctx-comments-trigger');
+      if (!btn || !currentUser) return;
 
+      const entityType = btn.dataset.entityType;
+      const entityId   = btn.dataset.entityId;
+      const container  = document.getElementById(`ctx-${entityType}-${entityId}`);
+
+      if (container && typeof ChatModule !== 'undefined') {
+        const isVisible = container.innerHTML !== '' && container.style.display !== 'none';
+        if (isVisible) {
+          container.innerHTML = '';
+          container.style.display = 'none';
+        } else {
+          container.style.display = 'block';
+          await ChatModule.renderContextualCommentPanel(entityType, entityId, container);
+        }
+      }
+    });
+
+    // Auto-resize do textarea de chat
+    document.addEventListener('input', (e) => {
+      if (e.target.id === 'chat-input' || e.target.classList.contains('ctx-comment-input')) {
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+      }
+    });
     // Inicialização da Fase 5 (Abas e Badge)
     setupTabs();
     setupConnectionBadge();
