@@ -85,7 +85,26 @@ document.addEventListener('DOMContentLoaded', () => {
         pedidos_compra: [
             { id: 'pc1', fornecedor_id: 'f1', produto_id: 'p1', tamanho: 'M', quantidade: 30, data_previsao: '2026-06-15', status: 'Pendente' },
             { id: 'pc2', fornecedor_id: 'f2', produto_id: 'p2', tamanho: 'Único', quantidade: 50, data_previsao: '2026-06-10', status: 'Recebido' }
-        ]
+        ],
+        chat_conversations: [
+  {
+    id: 'conv1',
+    name: 'Conversa Geral',
+    type: 'direct'
+      participants: ['u1', 'u2']
+  }
+],
+
+chat_messages: [
+  {
+    id: 'msg1',
+    conversation_id: 'conv1',
+    sender_id: 'u1',
+    body: 'Bem-vindo ao chat da plataforma.',
+    sent_at: new Date().toISOString()
+  }
+],
+        chat_attachments: [],
     };
 
     // Usuário logado — preenchido após autenticação
@@ -3644,8 +3663,17 @@ const ChatModule = (() => {
   // ---------------------------------------------------------------------------
 
   async function loadAllUsers() {
-    const { data, error } = await supabase
-      .from('usuarios')
+
+  state.allUsers = DB.usuarios
+      .filter(u => u.status === true)
+      .map(u => ({
+          id: u.id,
+          nome: u.nome,
+          cargo: u.cargo,
+          diretoria: u.diretoria
+      }));
+
+}
       .select('id, nome, cargo, diretoria')
       .eq('status', true)
       .order('nome');
@@ -3666,24 +3694,67 @@ const ChatModule = (() => {
   // ---------------------------------------------------------------------------
 
   async function loadConversations() {
-    const { data, error } = await supabase.rpc('get_conversation_preview', {
-      p_user_id: currentUser.id
-    });
-    if (error) { console.error('[Chat] Erro ao carregar conversas:', error); return; }
-    state.conversations = data || [];
-  }
+
+    state.conversations =
+      DB.chat_conversations.map(conv => {
+
+        const msgs = DB.chat_messages
+          .filter(m => m.conversation_id === conv.id);
+
+        const last =
+          msgs[msgs.length - 1];
+
+        return {
+            conversation_id: conv.id,
+            conv_name: conv.name,
+            conv_type: conv.type,
+            unread_count: 0,
+            last_message_body:
+                last ? last.body : '',
+            last_message_at:
+                last ? last.sent_at : null
+        };
+
+      });
+
+}
 
   async function openOrCreateDirectConversation(targetUserId) {
-    const { data, error } = await supabase.rpc('get_or_create_direct_conversation', {
-      p_user_a: currentUser.id,
-      p_user_b: targetUserId
+
+    let conversation = DB.chat_conversations.find(conv => {
+
+        if (!conv.participants) return false;
+
+        return (
+            conv.participants.includes(currentUser.id) &&
+            conv.participants.includes(targetUserId)
+        );
+
     });
-    if (error) { console.error('[Chat] Erro ao abrir conversa direta:', error); return; }
+
+    if (!conversation) {
+
+        conversation = {
+            id: 'conv_' + Date.now(),
+            type: 'direct',
+            name: 'Conversa',
+            participants: [
+                currentUser.id,
+                targetUserId
+            ]
+        };
+
+        DB.chat_conversations.push(conversation);
+    }
+
     await loadConversations();
+
     renderConversationList();
-    await openConversation(data);
+
+    await openConversation(conversation.id);
+
     navigateToChat();
-  }
+}
 
   async function createGroup(name, description, memberIds) {
     // Criar conversa
@@ -3714,19 +3785,16 @@ const ChatModule = (() => {
 
   async function openConversation(conversationId) {
     // Unsubscribe da conversa anterior
-    if (state.realtimeChannel) {
-      await supabase.removeChannel(state.realtimeChannel);
-      state.realtimeChannel = null;
-    }
+    state.realtimeChannel = null;
 
     state.activeConversationId = conversationId;
     state.isLoadingMessages = true;
 
-    // Marcar mensagens como lidas imediatamente
-    await supabase.rpc('mark_conversation_read', {
-      p_conversation_id: conversationId,
-      p_user_id: currentUser.id
-    });
+    // Modo mock: leitura automática
+    //await supabase.rpc('mark_conversation_read', {
+    //  p_conversation_id: conversationId,
+    //  p_user_id: currentUser.id
+    //});
 
     // Carregar histórico inicial (últimas N mensagens)
     await loadMessages(conversationId, true);
@@ -3748,85 +3816,78 @@ const ChatModule = (() => {
   // MENSAGENS — carregar, enviar, renderizar
   // ---------------------------------------------------------------------------
 
-  async function loadMessages(conversationId, reset = false) {
-    const cursor = state.messageCursors[conversationId];
-    const from = reset ? 0 : (cursor ? cursor.to + 1 : 0);
-    const to = from + state.MESSAGES_PER_PAGE - 1;
+async function loadMessages(conversationId, reset = false) {
 
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select(`
-        id, conversation_id, sender_id, body, sent_at, edited_at, deleted_at,
-        chat_attachments (id, file_url, file_name, file_size, mime_type),
-        chat_mentions (mentioned_user_id)
-      `)
-      .eq('conversation_id', conversationId)
-      .is('deleted_at', null)
-      .order('sent_at', { ascending: false })
-      .range(from, to);
+    const msgs = DB.chat_messages
+        .filter(
+            msg => msg.conversation_id === conversationId
+        )
+        .sort(
+            (a, b) =>
+                new Date(a.sent_at) -
+                new Date(b.sent_at)
+        );
 
-    if (error) { console.error('[Chat] Erro ao carregar mensagens:', error); return; }
+    state.messages[conversationId] = msgs;
 
-    const msgs = (data || []).reverse(); // mais antigas primeiro
+    state.messageCursors[conversationId] = {
+        from: 0,
+        to: msgs.length - 1
+    };
 
-    if (reset) {
-      state.messages[conversationId] = msgs;
-    } else {
-      state.messages[conversationId] = [...msgs, ...(state.messages[conversationId] || [])];
-    }
+}
 
-    state.messageCursors[conversationId] = { from, to };
-  }
+async function sendMessage(body, attachments = []) {
 
-  async function sendMessage(body, attachments = []) {
     const convId = state.activeConversationId;
+
     if (!convId || !body.trim()) return;
 
-    // Extrair menções do texto (@nome)
-    const mentionedUsers = extractMentions(body);
-
-    // Inserir mensagem
-    const { data: msg, error } = await supabase
-      .from('chat_messages')
-      .insert({
+    const msg = {
+        id: 'msg_' + Date.now(),
         conversation_id: convId,
         sender_id: currentUser.id,
-        body: body.trim()
-      })
-      .select('id')
-      .single();
+        body: body.trim(),
+        sent_at: new Date().toISOString()
+    };
 
-    if (error) { console.error('[Chat] Erro ao enviar mensagem:', error); showToast('Erro ao enviar mensagem.', 'error'); return; }
+    DB.chat_messages.push(msg);
 
-    // Registrar menções
-    if (mentionedUsers.length > 0) {
-      await supabase.from('chat_mentions').insert(
-        mentionedUsers.map(uid => ({
-          message_id: msg.id,
-          mentioned_user_id: uid
-        }))
-      );
+    if (!state.messages[convId]) {
+        state.messages[convId] = [];
     }
 
-    // Fazer upload de anexos (se houver)
-    for (const file of attachments) {
-      await uploadAttachment(msg.id, file);
+    state.messages[convId].push(msg);
+
+    renderMessages(convId);
+
+    const input = document.getElementById('chat-input');
+
+    if (input) {
+        input.value = '';
     }
 
-    // Limpar o input
-    document.getElementById('chat-input')?.value && (document.getElementById('chat-input').value = '');
-    clearAttachmentPreview();
-  }
+    scrollToBottom?.();
+}
 
-  async function deleteMessage(messageId) {
-    const { data, error } = await supabase.rpc('soft_delete_message', {
-      p_message_id: messageId,
-      p_user_id: currentUser.id
+async function deleteMessage(messageId) {
+
+    DB.chat_messages =
+        DB.chat_messages.filter(
+            msg => msg.id !== messageId
+        );
+
+    Object.keys(state.messages).forEach(convId => {
+        state.messages[convId] =
+            (state.messages[convId] || [])
+            .filter(msg => msg.id !== messageId);
     });
-    if (error || !data) {
-      showToast('Não foi possível remover a mensagem.', 'error');
-    }
-  }
+
+    showToast?.(
+        'Mensagem removida.',
+        'success'
+    );
+}
 
   async function editMessage(messageId, newBody) {
     if (!newBody.trim()) return;
@@ -3843,123 +3904,49 @@ const ChatModule = (() => {
   // ---------------------------------------------------------------------------
 
   function subscribeToConversation(conversationId) {
-    state.realtimeChannel = supabase
-      .channel(`conv:${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
-        async (payload) => {
-          // Buscar mensagem completa com anexos
-          const { data } = await supabase
-            .from('chat_messages')
-            .select(`
-              id, conversation_id, sender_id, body, sent_at, edited_at, deleted_at,
-              chat_attachments (id, file_url, file_name, file_size, mime_type)
-            `)
-            .eq('id', payload.new.id)
-            .single();
-
-          if (data) {
-            if (!state.messages[conversationId]) state.messages[conversationId] = [];
-            state.messages[conversationId].push(data);
-            appendMessageToView(data);
-
-            // Marcar como lida automaticamente se a conversa está aberta
-            if (state.activeConversationId === conversationId) {
-              await supabase.rpc('mark_conversation_read', {
-                p_conversation_id: conversationId,
-                p_user_id: currentUser.id
-              });
-            }
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
-        (payload) => {
-          updateMessageInView(payload.new);
-        }
-      )
-      .subscribe();
-  }
+    console.log('[Chat] Realtime desativado (modo mock)');
+    return;
+}
 
   function subscribeToNotifications() {
-    state.notifChannel = supabase
-      .channel(`notifs:${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_notifications',
-          filter: `recipient_id=eq.${currentUser.id}`
-        },
-        async (payload) => {
-          updateUnreadBadge();
-          await loadConversations();
-          renderConversationList();
-          // Integrar com o sistema de notificações existente no app.js
-          if (typeof appendSystemNotification === 'function') {
-            const notif = payload.new;
-            appendSystemNotification({
-              canal: 'IN_APP',
-              gatilho: `CHAT_${notif.type.toUpperCase()}`,
-              destinatario: currentUser.email,
-              status: 'ENTREGUE',
-              data: new Date().toISOString()
-            });
-          }
-        }
-      )
-      .subscribe();
-  }
+    console.log('[Chat] Notificações realtime desativadas (modo mock)');
+    return;
+}
 
   // Limpar subscriptions ao sair do módulo
-  async function destroy() {
-    if (state.realtimeChannel) await supabase.removeChannel(state.realtimeChannel);
-    if (state.notifChannel) await supabase.removeChannel(state.notifChannel);
+ async function destroy() {
+
     state.realtimeChannel = null;
     state.notifChannel = null;
-  }
+
+}
 
   // ---------------------------------------------------------------------------
   // ANEXOS
   // ---------------------------------------------------------------------------
 
   async function uploadAttachment(messageId, file) {
-    const ext = file.name.split('.').pop();
-    const path = `${currentUser.id}/${messageId}/${Date.now()}.${ext}`;
 
-    const { data, error } = await supabase.storage
-      .from('chat-attachments')
-      .upload(path, file, { contentType: file.type });
+    console.log(
+        '[Chat Mock] Anexo recebido:',
+        file.name
+    );
 
-    if (error) { console.error('[Chat] Erro no upload:', error); return; }
+    if (!DB.chat_attachments) {
+        DB.chat_attachments = [];
+    }
 
-    const { data: urlData } = supabase.storage
-      .from('chat-attachments')
-      .getPublicUrl(path);
-
-    await supabase.from('chat_attachments').insert({
-      message_id: messageId,
-      uploader_id: currentUser.id,
-      file_url: urlData.publicUrl,
-      file_name: file.name,
-      file_size: file.size,
-      mime_type: file.type
+    DB.chat_attachments.push({
+        id: 'att_' + Date.now(),
+        message_id: messageId,
+        uploader_id: currentUser.id,
+        file_url: '#',
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type
     });
-  }
+
+}
 
   // ---------------------------------------------------------------------------
   // COMENTÁRIOS CONTEXTUAIS
@@ -3979,15 +3966,17 @@ const ChatModule = (() => {
   }
 
   async function postContextualComment(entityType, entityId, body) {
+
     if (!body.trim()) return;
-    const { error } = await supabase.from('contextual_comments').insert({
-      entity_type: entityType,
-      entity_id: entityId,
-      author_id: currentUser.id,
-      body: body.trim()
-    });
-    if (error) { console.error('[Chat] Erro ao comentar:', error); showToast('Erro ao postar comentário.', 'error'); }
-  }
+
+    console.log(
+        '[Comentário Mock]',
+        entityType,
+        entityId,
+        body
+    );
+
+}
 
   async function deleteContextualComment(commentId) {
     const { error } = await supabase
@@ -4099,29 +4088,21 @@ const ChatModule = (() => {
   // ---------------------------------------------------------------------------
 
   async function searchMessages(query) {
-    if (!query || query.length < 3) return [];
-    const { data, error } = await supabase.rpc('search_messages', {
-      p_query: query,
-      p_user_id: currentUser.id,
-      p_limit: 20,
-      p_offset: 0
-    });
-    if (error) { console.error('[Chat] Erro na busca:', error); return []; }
-    return data || [];
-  }
+
+    if (!query || query.length < 3) {
+        return [];
+    }
+
+    return DB.chat_messages.filter(msg =>
+        msg.body &&
+        msg.body.toLowerCase().includes(query.toLowerCase())
+    );
+
+}
 
   async function searchComments(query) {
-    if (!query || query.length < 3) return [];
-    const { data, error } = await supabase.rpc('search_comments', {
-      p_query: query,
-      p_user_id: currentUser.id,
-      p_limit: 20,
-      p_offset: 0
-    });
-    if (error) { console.error('[Chat] Erro na busca de comentários:', error); return []; }
-    return data || [];
-  }
-
+    return [];
+}
   // ---------------------------------------------------------------------------
   // BADGE DE NÃO-LIDOS — integra com #notif-badge existente
   // ---------------------------------------------------------------------------
