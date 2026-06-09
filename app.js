@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   {
     id: 'conv1',
     name: 'Conversa Geral',
-    type: 'direct'
+    type: 'direct',
       participants: ['u1', 'u2']
   }
 ],
