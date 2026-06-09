@@ -4070,6 +4070,20 @@ const ChatModule = (() => {
     );
 
 }
+    
+    function escapeHtml(text) {
+
+    if (!text) return '';
+
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+}
+    
     function renderConversationList() {
     const container = document.getElementById('chat-conversations-list');
     if (!container) return;
