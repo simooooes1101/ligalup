@@ -3674,13 +3674,7 @@ const ChatModule = (() => {
       }));
 
 }
-      .select('id, nome, cargo, diretoria')
-      .eq('status', true)
-      .order('nome');
-    if (error) { console.error('[Chat] Erro ao carregar usuários:', error); return; }
-    state.allUsers = data || [];
-  }
-
+     
   function getUserById(id) {
     return state.allUsers.find(u => u.id === id) || { nome: 'Usuário', cargo: '', diretoria: '' };
   }
@@ -3867,7 +3861,9 @@ async function sendMessage(body, attachments = []) {
         input.value = '';
     }
 
-    scrollToBottom?.();
+    if (typeof scrollToBottom === 'function') {
+    scrollToBottom();
+}
 }
 
 async function deleteMessage(messageId) {
