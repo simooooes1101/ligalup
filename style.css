@@ -2014,6 +2014,9 @@ option:hover {
 .chat-active-conv {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-width: 400px;
   height: 100%;
   overflow: hidden;
 }
