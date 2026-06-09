@@ -4057,7 +4057,20 @@ const ChatModule = (() => {
   // RENDER — conversas e mensagens
   // ---------------------------------------------------------------------------
 
-  function renderConversationList() {
+  function formatChatTime(date) {
+
+    if (!date) return '';
+
+    return new Date(date).toLocaleTimeString(
+        'pt-BR',
+        {
+            hour: '2-digit',
+            minute: '2-digit'
+        }
+    );
+
+}
+    function renderConversationList() {
     const container = document.getElementById('chat-conversations-list');
     if (!container) return;
 
