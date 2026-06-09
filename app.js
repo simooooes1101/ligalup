@@ -9,13 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
     const DB = {
         usuarios: [
-            { id: 'u1', nome: 'Eduardo Carolo', email: 'presidencia@atleticalup.com.br', cargo: 'Master', diretoria: 'Presidência', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u2', nome: 'Barthô da Tesouraria', email: 'financeiro@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Tesouraria', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u3', nome: 'Mariana do Mkt', email: 'marketing@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Marketing', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u4', nome: 'Guilherme do Esporte', email: 'esportes@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Esportes', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u5', nome: 'Lucas do Jurídico', email: 'juridico@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Jurídico', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u6', nome: 'Amanda Apoio', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u7', nome: 'Rafaela de Parcerias', email: 'parcerias@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Parcerias', status: true, senha: 'lup123_strategy', avatar: null }
+            { id: 'u1', nome: 'Ruan Miguel', email: 'presidencia@atleticalup.com.br', cargo: 'Master', diretoria: 'Presidência', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u2', nome: 'Camille Baleeiro', email: 'financeiro@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Tesouraria', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u3', nome: 'Mariana Alvarenga', email: 'marketing@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Marketing', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u4', nome: 'Nicoly Moessa', email: 'esportes@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Esportes', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u5', nome: 'Ed Carlos Simões', email: 'juridico@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Jurídico', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u6', nome: 'Amanda Silva', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true, senha: 'lup123_strategy', avatar: null },
+            { id: 'u7', nome: 'Gabriel Portilho', email: 'parcerias@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Parcerias', status: true, senha: 'lup123_strategy', avatar: null }
         ],
         eventos: [
             { id: 'e1', nome: 'Cervejada de Integração LUP', data_evento: '2026-06-12 18:00', local: 'Arena LUP', orcamento_previsto: 12000.00, status_aprovacao: 'Aprovado', tipo: 'Social', valor_taxa_base: 80.00, criador_id: 'u3' },
