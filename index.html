@@ -114,6 +114,237 @@
                     <li class="nav-item" data-target="mod-legal">
                         <i class="fas fa-file-contract"></i> Jurídico &amp; GED
                     </li>
+                    <!-- =============================================================================
+   INSTRUÇÕES DE INTEGRAÇÃO — index.html
+   =============================================================================
+
+   1. ADICIONAR à nav-links (dentro de <ul class="nav-links" id="nav-links">),
+      antes do </ul>, após o último <li>:
+   ============================================================================= -->
+
+<li class="nav-item" data-target="mod-comunicacao">
+  <i class="fas fa-comments"></i> Comunicação
+  <span class="notification-badge" id="chat-unread-badge" style="display:none; position:absolute; top:6px; right:8px; background:var(--danger); color:#fff; border-radius:50%; width:18px; height:18px; font-size:10px; align-items:center; justify-content:center;"></span>
+</li>
+
+<!-- =============================================================================
+   2. ADICIONAR após a última </section> existente, antes do </main>:
+   ============================================================================= -->
+
+<section id="mod-comunicacao" class="module-section">
+
+  <div class="chat-wrapper">
+
+    <!-- ===================== SIDEBAR ESQUERDA — lista de conversas ===================== -->
+    <div class="chat-sidebar">
+
+      <!-- Cabeçalho -->
+      <div class="chat-sidebar-header">
+        <h3 class="chat-sidebar-title">
+          <i class="fas fa-comments"></i> Comunicação
+        </h3>
+        <div class="chat-sidebar-actions">
+          <button id="btn-new-conversation" class="chat-icon-btn" title="Nova conversa direta">
+            <i class="fas fa-user-plus"></i>
+          </button>
+          <button id="btn-new-group" class="chat-icon-btn" title="Criar grupo">
+            <i class="fas fa-users"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Busca global -->
+      <div class="chat-search-bar">
+        <i class="fas fa-search chat-search-icon"></i>
+        <input
+          type="text"
+          id="chat-search-input"
+          class="chat-search-input"
+          placeholder="Buscar mensagens..."
+          autocomplete="off"
+        >
+      </div>
+
+      <!-- Resultados de busca (oculto por padrão) -->
+      <div id="chat-search-results" class="chat-search-results" style="display:none;"></div>
+
+      <!-- Lista de conversas -->
+      <div id="chat-conversations-list" class="chat-conversations-list">
+        <div class="chat-empty-state">
+          <i class="fas fa-comments"></i>
+          <p>Carregando conversas...</p>
+        </div>
+      </div>
+
+    </div><!-- fim .chat-sidebar -->
+
+    <!-- ===================== ÁREA PRINCIPAL — mensagens ===================== -->
+    <div class="chat-main" id="chat-main">
+
+      <!-- Estado inicial: nenhuma conversa selecionada -->
+      <div id="chat-no-conv" class="chat-no-conv">
+        <i class="fas fa-comment-dots"></i>
+        <p>Selecione uma conversa ou inicie uma nova.</p>
+        <button class="btn btn-accent" id="btn-no-conv-new">
+          <i class="fas fa-plus"></i> Nova conversa
+        </button>
+      </div>
+
+      <!-- Conversa ativa (oculto até selecionar) -->
+      <div id="chat-active-conv" class="chat-active-conv" style="display:none;">
+
+        <!-- Header da conversa -->
+        <div class="chat-conv-header-bar">
+          <div class="chat-conv-header-info">
+            <div class="chat-conv-header-avatar" id="chat-conv-header-avatar">?</div>
+            <div>
+              <div id="chat-conv-header-title" class="chat-conv-header-title">—</div>
+              <div id="chat-conv-header-subtitle" class="chat-conv-header-subtitle"></div>
+            </div>
+          </div>
+          <div class="chat-conv-header-actions">
+            <button class="chat-icon-btn" id="btn-conv-search" title="Buscar nesta conversa">
+              <i class="fas fa-search"></i>
+            </button>
+            <button class="chat-icon-btn" id="btn-conv-info" title="Informações">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Área de mensagens com scroll -->
+        <div id="chat-messages-container" class="chat-messages-container">
+          <!-- Preenchido pelo ChatModule.renderMessages() -->
+        </div>
+
+        <!-- Preview de anexos -->
+        <div id="chat-attachment-preview" class="chat-attachment-preview" style="display:none;">
+          <!-- Preenchido dinamicamente -->
+        </div>
+
+        <!-- Input de mensagem -->
+        <div id="chat-input-area" class="chat-input-area">
+          <!-- Picker de menções (posicionado aqui pelo JS) -->
+
+          <div class="chat-input-row">
+            <button id="btn-attach-file" class="chat-icon-btn" title="Anexar arquivo">
+              <i class="fas fa-paperclip"></i>
+            </button>
+
+            <textarea
+              id="chat-input"
+              class="chat-textarea"
+              placeholder="Escreva uma mensagem... Use @ para mencionar alguém"
+              rows="1"
+              maxlength="4000"
+            ></textarea>
+
+            <button id="btn-send-message" class="chat-send-btn" title="Enviar (Enter)">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+
+          <!-- Input de arquivo oculto -->
+          <input type="file" id="chat-file-input" style="display:none;"
+                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" multiple>
+        </div>
+
+      </div><!-- fim #chat-active-conv -->
+
+    </div><!-- fim .chat-main -->
+
+  </div><!-- fim .chat-wrapper -->
+
+</section><!-- fim #mod-comunicacao -->
+
+
+<!-- =============================================================================
+   3. COMENTÁRIOS CONTEXTUAIS — adicionar dentro de cada módulo existente
+      Exemplo: no card de detalhes de um evento, de um atleta, de um parceiro etc.
+
+   Para EVENTOS (mod-eventos), adicionar ao final do kanban ou no card de detalhes:
+   ============================================================================= -->
+
+<!-- Template de painel de comentários — instanciar via JS com renderContextualCommentPanel() -->
+<!-- O JS insere este painel dinamicamente quando o usuário clica em "Comentários" -->
+<!-- Exemplo de botão a adicionar nos cards existentes: -->
+
+<!--
+  <button class="btn btn-secondary ctx-comments-trigger"
+          data-entity-type="evento"
+          data-entity-id="EVENTO_UUID_AQUI"
+          style="font-size:11px; margin-top:8px;">
+    <i class="fas fa-comment-alt"></i> Comentários
+  </button>
+  <div class="ctx-comments-container" id="ctx-evento-EVENTO_UUID_AQUI"></div>
+-->
+
+<!-- O bind global no app.js cuida do click nos botões .ctx-comments-trigger:
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.ctx-comments-trigger');
+    if (!btn) return;
+    const container = document.getElementById(
+      `ctx-${btn.dataset.entityType}-${btn.dataset.entityId}`
+    );
+    if (container) {
+      await ChatModule.renderContextualCommentPanel(
+        btn.dataset.entityType,
+        btn.dataset.entityId,
+        container
+      );
+    }
+  });
+-->
+
+
+<!-- =============================================================================
+   4. MODAL GENÉRICO (usado pelo ChatModule)
+      Adicionar antes do fechamento do </main>:
+   ============================================================================= -->
+<!-- O ChatModule cria e gerencia este elemento dinamicamente via JS. -->
+<!-- Nenhum HTML adicional necessário — o modal é injetado pelo ChatModule.showModal() -->
+
+
+<!-- =============================================================================
+   5. SNIPPET DE INTEGRAÇÃO NO LISTENER DE NAVEGAÇÃO DO app.js
+      Encontrar o trecho que processa clicks nos .nav-item e adicionar:
+   ============================================================================= -->
+
+<!--
+  // No handler de navegação existente no app.js, adicionar:
+  if (targetModuleId === 'mod-comunicacao') {
+    if (currentUser && typeof ChatModule !== 'undefined') {
+      ChatModule.init();
+      // Mostrar a área de conversa corretamente
+      document.getElementById('chat-no-conv').style.display = 'flex';
+      document.getElementById('chat-active-conv').style.display = 'none';
+    }
+  } else {
+    // Destruir subscriptions ao sair do módulo de comunicação
+    if (typeof ChatModule !== 'undefined') {
+      ChatModule.destroy();
+    }
+  }
+
+  // Bind global de comentários contextuais (adicionar uma vez, fora do handler):
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.ctx-comments-trigger');
+    if (!btn || !currentUser) return;
+    const entityType = btn.dataset.entityType;
+    const entityId = btn.dataset.entityId;
+    const container = document.getElementById(`ctx-${entityType}-${entityId}`);
+    if (container && typeof ChatModule !== 'undefined') {
+      const isVisible = container.style.display !== 'none' && container.innerHTML !== '';
+      if (isVisible) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+      } else {
+        container.style.display = 'block';
+        await ChatModule.renderContextualCommentPanel(entityType, entityId, container);
+      }
+    }
+  });
+-->
                 </ul>
             </div>
             
