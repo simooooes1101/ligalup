@@ -131,132 +131,86 @@
    2. ADICIONAR após a última </section> existente, antes do </main>:
    ============================================================================= -->
 
+<!-- ============================================================ -->
+<!-- MÓDULO: COMUNICAÇÃO (Chat Interno)                           -->
+<!-- ============================================================ -->
 <section id="mod-comunicacao" class="module-section">
+  <div class="chat-layout">
 
-  <div class="chat-wrapper">
-
-    <!-- ===================== SIDEBAR ESQUERDA — lista de conversas ===================== -->
+    <!-- ── SIDEBAR ESQUERDA: lista de conversas ── -->
     <div class="chat-sidebar">
-
-      <!-- Cabeçalho -->
       <div class="chat-sidebar-header">
-        <h3 class="chat-sidebar-title">
-          <i class="fas fa-comments"></i> Comunicação
-        </h3>
-        <div class="chat-sidebar-actions">
-          <button id="btn-new-conversation" class="chat-icon-btn" title="Nova conversa direta">
-            <i class="fas fa-user-plus"></i>
-          </button>
-          <button id="btn-new-group" class="chat-icon-btn" title="Criar grupo">
-            <i class="fas fa-users"></i>
-          </button>
-        </div>
+        <h4><i class="fas fa-comments"></i> Mensagens</h4>
+        <button class="btn-icon" id="btn-new-chat" title="Nova conversa">
+          <i class="fas fa-edit"></i>
+        </button>
       </div>
 
-      <!-- Busca global -->
-      <div class="chat-search-bar">
+      <div class="chat-search-wrapper">
         <i class="fas fa-search chat-search-icon"></i>
         <input
           type="text"
           id="chat-search-input"
           class="chat-search-input"
-          placeholder="Buscar mensagens..."
-          autocomplete="off"
+          placeholder="Buscar conversa..."
         >
       </div>
 
-      <!-- Resultados de busca (oculto por padrão) -->
-      <div id="chat-search-results" class="chat-search-results" style="display:none;"></div>
-
-      <!-- Lista de conversas -->
-      <div id="chat-conversations-list" class="chat-conversations-list">
-        <div class="chat-empty-state">
-          <i class="fas fa-comments"></i>
-          <p>Carregando conversas...</p>
-        </div>
+      <!-- Estado: carregando -->
+      <div id="chat-loading-state" class="chat-state-msg">
+        <i class="fas fa-circle-notch fa-spin"></i> Carregando conversas...
       </div>
 
-    </div><!-- fim .chat-sidebar -->
+      <!-- Estado: sem resultados de busca -->
+      <div id="chat-empty-state" class="chat-state-msg" style="display:none;">
+        <i class="fas fa-search"></i> Nenhuma conversa encontrada.
+      </div>
 
-    <!-- ===================== ÁREA PRINCIPAL — mensagens ===================== -->
+      <!-- Lista de conversas (populada pelo JS) -->
+      <ul id="conversations-list" class="conversations-list" style="display:none;"></ul>
+    </div>
+
+    <!-- ── PAINEL DIREITO: janela de chat ── -->
     <div class="chat-main" id="chat-main">
 
-      <!-- Estado inicial: nenhuma conversa selecionada -->
-      <div id="chat-no-conv" class="chat-no-conv">
-        <i class="fas fa-comment-dots"></i>
+      <!-- Placeholder: nenhuma conversa selecionada -->
+      <div id="chat-no-selection" class="chat-no-selection">
+        <i class="fas fa-comments" style="font-size:48px; opacity:0.2; margin-bottom:16px;"></i>
         <p>Selecione uma conversa ou inicie uma nova.</p>
-        <button class="btn btn-accent" id="btn-no-conv-new">
-          <i class="fas fa-plus"></i> Nova conversa
-        </button>
       </div>
 
-      <!-- Conversa ativa (oculto até selecionar) -->
-      <div id="chat-active-conv" class="chat-active-conv" style="display:none;">
+      <!-- Área de chat ativa (oculta por padrão) -->
+      <div id="chat-active-area" class="chat-active-area" style="display:none;">
 
-        <!-- Header da conversa -->
-        <div class="chat-conv-header-bar">
-          <div class="chat-conv-header-info">
-            <div class="chat-conv-header-avatar" id="chat-conv-header-avatar">?</div>
-            <div>
-              <div id="chat-conv-header-title" class="chat-conv-header-title">—</div>
-              <div id="chat-conv-header-subtitle" class="chat-conv-header-subtitle"></div>
-            </div>
-          </div>
-          <div class="chat-conv-header-actions">
-            <button class="chat-icon-btn" id="btn-conv-search" title="Buscar nesta conversa">
-              <i class="fas fa-search"></i>
-            </button>
-            <button class="chat-icon-btn" id="btn-conv-info" title="Informações">
-              <i class="fas fa-info-circle"></i>
-            </button>
-          </div>
+        <!-- Header da conversa ativa -->
+        <div class="chat-header-bar" id="chat-header-bar">
+          <!-- Populado pelo JS -->
         </div>
 
-        <!-- Área de mensagens com scroll -->
-        <div id="chat-messages-container" class="chat-messages-container">
-          <!-- Preenchido pelo ChatModule.renderMessages() -->
+        <!-- Corpo: mensagens -->
+        <div class="chat-messages-body" id="chat-messages-body">
+          <!-- Populado pelo JS -->
         </div>
 
-        <!-- Preview de anexos -->
-        <div id="chat-attachment-preview" class="chat-attachment-preview" style="display:none;">
-          <!-- Preenchido dinamicamente -->
+        <!-- Rodapé: input de envio -->
+        <div class="chat-input-bar">
+          <input
+            type="text"
+            id="chat-input-field"
+            class="chat-input-field"
+            placeholder="Digite uma mensagem..."
+            autocomplete="off"
+          >
+          <button class="chat-send-btn" id="btn-send-message">
+            <i class="fas fa-paper-plane"></i>
+          </button>
         </div>
 
-        <!-- Input de mensagem -->
-        <div id="chat-input-area" class="chat-input-area">
-          <!-- Picker de menções (posicionado aqui pelo JS) -->
+      </div>
+    </div>
 
-          <div class="chat-input-row">
-            <button id="btn-attach-file" class="chat-icon-btn" title="Anexar arquivo">
-              <i class="fas fa-paperclip"></i>
-            </button>
-
-            <textarea
-              id="chat-input"
-              class="chat-textarea"
-              placeholder="Escreva uma mensagem... Use @ para mencionar alguém"
-              rows="1"
-              maxlength="4000"
-            ></textarea>
-
-            <button id="btn-send-message" class="chat-send-btn" title="Enviar (Enter)">
-              <i class="fas fa-paper-plane"></i>
-            </button>
-          </div>
-
-          <!-- Input de arquivo oculto -->
-          <input type="file" id="chat-file-input" style="display:none;"
-                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" multiple>
-        </div>
-
-      </div><!-- fim #chat-active-conv -->
-
-    </div><!-- fim .chat-main -->
-
-  </div><!-- fim .chat-wrapper -->
-
-</section><!-- fim #mod-comunicacao -->
-
+  </div>
+</section>
 
 <!-- =============================================================================
    3. COMENTÁRIOS CONTEXTUAIS — adicionar dentro de cada módulo existente
