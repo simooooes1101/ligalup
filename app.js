@@ -3856,7 +3856,36 @@ function sendMockMessage() {
   inputEl.value = '';
   openConversation(chatState.selectedConversationId);
 }
+// ================================================================
+// EXPORTAÇÃO DO MÓDULO DE CHAT
+// ================================================================
 
+const ChatModule = {
+  init() {
+    initChatModule();
+  },
+
+  destroy() {
+    chatState.selectedConversationId = null;
+  },
+
+  openConversation,
+
+  sendMessage() {
+    sendMockMessage();
+  },
+
+  async renderContextualCommentPanel(entityType, entityId, container) {
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="ctx-comments-panel">
+        <h4>Comentários</h4>
+        <p>Funcionalidade em desenvolvimento.</p>
+      </div>
+    `;
+  }
+};
 // ── 7. BIND DE EVENTOS ───────────────────────────────────────────
 function bindChatEvents() {
   // Delegação de evento na lista (evita rebind em cada render)
