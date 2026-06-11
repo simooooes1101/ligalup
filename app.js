@@ -134,15 +134,17 @@ chat_messages: [
     // Chave = data-target do módulo. Valor = array de diretorias com escrita.
     // Master sempre tem escrita plena.
     const WRITE_PERMISSIONS = {
-        'mod-dashboard':  ['Presidência', 'Vice-Presidência'],
-        'mod-acessos':    ['Presidência', 'Vice-Presidência'],  // só Master (verificado via cargo)
-        'mod-eventos':    ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Marketing', 'Esportes'],
-        'mod-marketing':  ['Presidência', 'Vice-Presidência', 'Marketing'],
-        'mod-produtos':   ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Produtos'],
-        'mod-esportes':   ['Presidência', 'Vice-Presidência', 'Esportes', 'Jurídico'],
-        'mod-financeiro': ['Presidência', 'Vice-Presidência', 'Tesouraria'],
-        'mod-parcerias':  ['Presidência', 'Vice-Presidência', 'Parcerias', 'Relações Externas'],
-        'mod-legal':      ['Presidência', 'Vice-Presidência', 'Jurídico'],
+        'mod-dashboard':     ['Presidência', 'Vice-Presidência'],
+        'mod-acessos':       ['Presidência', 'Vice-Presidência'],  // só Master (verificado via cargo)
+        'mod-eventos':       ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Marketing', 'Esportes'],
+        'mod-marketing':     ['Presidência', 'Vice-Presidência', 'Marketing'],
+        'mod-produtos':      ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Produtos'],
+        'mod-esportes':      ['Presidência', 'Vice-Presidência', 'Esportes', 'Jurídico'],
+        'mod-financeiro':    ['Presidência', 'Vice-Presidência', 'Tesouraria'],
+        'mod-parcerias':     ['Presidência', 'Vice-Presidência', 'Parcerias', 'Relações Externas'],
+        'mod-legal':         ['Presidência', 'Vice-Presidência', 'Jurídico'],
+        // Chat interno: aberto para leitura e escrita a todos os membros autenticados
+        'mod-comunicacao':   ['Presidência', 'Vice-Presidência', 'Tesouraria', 'Marketing', 'Esportes', 'Jurídico', 'Produtos', 'Parcerias', 'Relações Externas', 'Nenhuma'],
     };
 
     function canWrite(moduleId) {
