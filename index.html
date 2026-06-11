@@ -1643,7 +1643,54 @@
                     </form>
                 </div>
             </section>
+            
+            <!-- ========================================================== -->
+            <!-- MÓDULO: COMUNICAÇÃO — Chat Interno                         -->
+            <!-- ========================================================== -->
+            <section id="mod-comunicacao" class="module-section">
+              <div class="chat-layout">
 
+                <!-- ── SIDEBAR ESQUERDA ── -->
+                <div class="chat-sidebar">
+                  <div class="chat-sidebar-header">
+                    <h4><i class="fas fa-comments"></i> Mensagens</h4>
+                    <button class="btn-icon" id="btn-new-chat" title="Nova conversa">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                  </div>
+                  <div class="chat-search-wrapper">
+                    <i class="fas fa-search chat-search-icon"></i>
+                    <input type="text" id="chat-search-input" class="chat-search-input" placeholder="Buscar conversa...">
+                  </div>
+                  <div id="chat-loading-state" class="chat-state-msg">
+                    <i class="fas fa-circle-notch fa-spin"></i> Carregando conversas...
+                  </div>
+                  <div id="chat-empty-state" class="chat-state-msg" style="display:none;">
+                    <i class="fas fa-search"></i> Nenhuma conversa encontrada.
+                  </div>
+                  <ul id="conversations-list" class="conversations-list" style="display:none;"></ul>
+                </div>
+
+                <!-- ── PAINEL DIREITO ── -->
+                <div class="chat-main" id="chat-main">
+                  <div id="chat-no-selection" class="chat-no-selection">
+                    <i class="fas fa-comments" style="font-size:48px; opacity:0.2; margin-bottom:16px;"></i>
+                    <p>Selecione uma conversa ou inicie uma nova.</p>
+                  </div>
+                  <div id="chat-active-area" class="chat-active-area" style="display:none; flex-direction:column; height:100%;">
+                    <div class="chat-header-bar" id="chat-header-bar"></div>
+                    <div class="chat-messages-body" id="chat-messages-body"></div>
+                    <div class="chat-input-bar">
+                      <input type="text" id="chat-input-field" class="chat-input-field" placeholder="Digite uma mensagem..." autocomplete="off">
+                      <button class="chat-send-btn" id="btn-send-message">
+                        <i class="fas fa-paper-plane"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </section>
         </main>
 
     </div>
