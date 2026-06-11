@@ -112,10 +112,6 @@ chat_messages: [
     // Usuário logado — preenchido após autenticação
     let currentUser = null;
     window.currentUser = currentUser;
-        // Expõe funções do chat ao escopo global para acesso cross-scope
-        window._chatState = chatState;
-        window.openNewChatModal = openNewChatModal;
-        window.closeNewChatModal = closeNewChatModal;
 
     // Estado de seleção para marketing, esportes e financeiro (Fase 4)
     let selectedMarketingEventId = '';
