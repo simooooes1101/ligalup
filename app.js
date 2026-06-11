@@ -3623,943 +3623,296 @@ navItems.forEach(item => {
         });
     }
 });
-// =============================================================================
-// MÓDULO DE COMUNICAÇÃO INTERNA — chat_module.js
-// Adicionar ao final do app.js existente (antes do último fechamento de escopo)
-// Requer: variável global `supabase` e `currentUser` já definidas no app.js
-// =============================================================================
+// ================================================================
+// MÓDULO: COMUNICAÇÃO — Chat Interno (Modo Mockup)
+// ================================================================
 
-const ChatModule = (() => {
+// ── 1. DADOS MOCKUP ─────────────────────────────────────────────
+// Estrutura OBRIGATÓRIA: todo objeto deve ter o campo `messages`
+const MOCK_CONVERSATIONS = [
+  {
+    id: 'conv-1',
+    name: 'Eduardo Carolo',
+    role: 'Presidência',
+    avatar: null,
+    lastMessage: 'Reunião confirmada para sexta às 19h.',
+    timestamp: '10:45',
+    unread: 2,
+    messages: [
+      { id: 'm1', senderId: 'them', senderName: 'Eduardo', text: 'Oi, tudo bem?', time: '10:30' },
+      { id: 'm2', senderId: 'me',   senderName: 'Eu',      text: 'Tudo sim! E você?', time: '10:32' },
+      { id: 'm3', senderId: 'them', senderName: 'Eduardo', text: 'Ótimo! Reunião confirmada para sexta às 19h.', time: '10:45' },
+    ]
+  },
+  {
+    id: 'conv-2',
+    name: 'Diretoria de Marketing',
+    role: 'Marketing',
+    avatar: null,
+    lastMessage: 'Arte do evento está pronta.',
+    timestamp: 'Ontem',
+    unread: 0,
+    messages: [
+      { id: 'm1', senderId: 'them', senderName: 'Marketing', text: 'Arte do evento está pronta.', time: 'Ontem 14:20' },
+      { id: 'm2', senderId: 'me',   senderName: 'Eu',        text: 'Manda aqui para aprovar.', time: 'Ontem 14:22' },
+    ]
+  },
+  {
+    id: 'conv-3',
+    name: 'Tesouraria',
+    role: 'Financeiro',
+    avatar: null,
+    lastMessage: 'Saldo do caixa atualizado.',
+    timestamp: 'Seg',
+    unread: 1,
+    messages: [
+      { id: 'm1', senderId: 'them', senderName: 'Tesouraria', text: 'Saldo do caixa atualizado.', time: 'Seg 09:00' },
+    ]
+  },
+  {
+    id: 'conv-4',
+    name: 'Jurídico & GED',
+    role: 'Jurídico',
+    avatar: null,
+    lastMessage: 'Contrato enviado para assinatura.',
+    timestamp: 'Dom',
+    unread: 0,
+    messages: [
+      { id: 'm1', senderId: 'me',   senderName: 'Eu',       text: 'Preciso do contrato do evento.', time: 'Dom 11:00' },
+      { id: 'm2', senderId: 'them', senderName: 'Jurídico', text: 'Contrato enviado para assinatura.', time: 'Dom 11:15' },
+    ]
+  },
+];
 
-  // ---------------------------------------------------------------------------
-  // Estado interno do módulo
-  // ---------------------------------------------------------------------------
-  let state = {
-    activeConversationId: null,
-    conversations: [],
-    messages: {},            // { [conversationId]: Message[] }
-    realtimeChannel: null,   // subscription ativa de mensagens
-    notifChannel: null,      // subscription ativa de notificações
-    mentionQuery: '',
-    mentionCandidates: [],
-    allUsers: [],            // cache de usuários para @menção
-    isLoadingMessages: false,
-    messageCursors: {},      // { [conversationId]: { from: N, to: N } } — paginação
-    MESSAGES_PER_PAGE: 40,
+// ── 2. ESTADO INTERNO ────────────────────────────────────────────
+let chatState = {
+  selectedConversationId: null,
+  conversations: [],
+  filteredConversations: [],
+};
+
+// ── 3. INICIALIZAÇÃO ─────────────────────────────────────────────
+function initChatModule() {
+  chatState.conversations = MOCK_CONVERSATIONS;
+  chatState.filteredConversations = [...MOCK_CONVERSATIONS];
+
+  renderConversationList(chatState.filteredConversations);
+  bindChatEvents();
+}
+
+// ── 4. RENDER DA LISTA DE CONVERSAS ──────────────────────────────
+function renderConversationList(conversations) {
+  const loadingEl  = document.getElementById('chat-loading-state');
+  const emptyEl    = document.getElementById('chat-empty-state');
+  const listEl     = document.getElementById('conversations-list');
+
+  // Guarda defensiva: se elementos não existem, o módulo não está ativo
+  if (!listEl) return;
+
+  // Oculta o loading spinner
+  if (loadingEl) loadingEl.style.display = 'none';
+
+  if (!conversations || conversations.length === 0) {
+    listEl.style.display  = 'none';
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = 'none';
+  listEl.style.display = 'block';
+
+  listEl.innerHTML = conversations.map(conv => {
+    const initials  = (conv.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const isActive  = conv.id === chatState.selectedConversationId;
+    const unreadBadge = conv.unread > 0
+      ? `<span class="conv-unread-badge">${conv.unread}</span>`
+      : '';
+
+    return `
+      <li
+        class="conversation-item ${isActive ? 'active' : ''}"
+        data-conv-id="${conv.id}"
+        role="button"
+        tabindex="0"
+        aria-label="Conversa com ${conv.name}"
+      >
+        <div class="conv-avatar">${initials}</div>
+        <div class="conv-info">
+          <div class="conv-top">
+            <span class="conv-name">${conv.name ?? 'Usuário'}</span>
+            <span class="conv-time">${conv.timestamp ?? ''}</span>
+          </div>
+          <div class="conv-bottom">
+            <span class="conv-last-msg">${conv.lastMessage ?? ''}</span>
+            ${unreadBadge}
+          </div>
+        </div>
+      </li>
+    `;
+  }).join('');
+}
+
+// ── 5. ABRIR CONVERSA (o ponto crítico que causava tela preta) ───
+function openConversation(conversationId) {
+  // Busca com segurança
+  const conv = chatState.conversations.find(c => c.id === conversationId);
+
+  if (!conv) {
+    console.error('[Chat] openConversation: conversa não encontrada →', conversationId);
+    return;
+  }
+
+  // Atualiza estado
+  chatState.selectedConversationId = conversationId;
+
+  // Marca conversa como lida
+  conv.unread = 0;
+
+  // Re-renderiza a lista para atualizar o item ativo e remover badge
+  renderConversationList(chatState.filteredConversations);
+
+  // Referências aos elementos do painel direito
+  const noSelectionEl = document.getElementById('chat-no-selection');
+  const activeAreaEl  = document.getElementById('chat-active-area');
+  const headerBarEl   = document.getElementById('chat-header-bar');
+  const messagesBodyEl = document.getElementById('chat-messages-body');
+
+  // Guarda defensiva: verifica se todos os elementos existem
+  if (!noSelectionEl || !activeAreaEl || !headerBarEl || !messagesBodyEl) {
+    console.error('[Chat] openConversation: elementos do DOM não encontrados. Verifique os IDs no HTML.');
+    return;
+  }
+
+  // Alterna visibilidade: oculta placeholder, mostra área de chat
+  noSelectionEl.style.display = 'none';
+  activeAreaEl.style.display  = 'flex';
+
+  // Renderiza o header da conversa
+  const initials = (conv.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  headerBarEl.innerHTML = `
+    <div class="chat-header-info">
+      <div class="conv-avatar conv-avatar--sm">${initials}</div>
+      <div class="chat-header-text">
+        <strong>${conv.name ?? 'Usuário'}</strong>
+        <small>${conv.role ?? ''}</small>
+      </div>
+    </div>
+    <div class="chat-header-actions">
+      <button class="btn-icon" title="Mais opções"><i class="fas fa-ellipsis-v"></i></button>
+    </div>
+  `;
+
+  // Renderiza mensagens com optional chaining e fallback de array vazio
+  const messages = conv?.messages ?? [];
+
+  if (messages.length === 0) {
+    messagesBodyEl.innerHTML = `
+      <div class="chat-empty-messages">
+        <i class="fas fa-comment-dots"></i>
+        <p>Nenhuma mensagem ainda. Inicie a conversa!</p>
+      </div>
+    `;
+  } else {
+    messagesBodyEl.innerHTML = messages.map(msg => `
+      <div class="chat-msg ${msg.senderId === 'me' ? 'msg-sent' : 'msg-received'}">
+        <div class="msg-bubble">${msg.text ?? ''}</div>
+        <span class="msg-time">${msg.time ?? ''}</span>
+      </div>
+    `).join('');
+  }
+
+  // Scroll automático para a última mensagem
+  messagesBodyEl.scrollTop = messagesBodyEl.scrollHeight;
+}
+
+// ── 6. ENVIAR MENSAGEM (mockup local) ────────────────────────────
+function sendMockMessage() {
+  const inputEl = document.getElementById('chat-input-field');
+  const text    = inputEl?.value?.trim();
+
+  if (!text || !chatState.selectedConversationId) return;
+
+  const conv = chatState.conversations.find(c => c.id === chatState.selectedConversationId);
+  if (!conv) return;
+
+  // Garante que o array existe
+  if (!Array.isArray(conv.messages)) conv.messages = [];
+
+  const newMsg = {
+    id: `m${Date.now()}`,
+    senderId: 'me',
+    senderName: 'Eu',
+    text,
+    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
   };
 
-  // ---------------------------------------------------------------------------
-  // INICIALIZAÇÃO
-  // ---------------------------------------------------------------------------
+  conv.messages.push(newMsg);
+  conv.lastMessage = text;
+  conv.timestamp   = newMsg.time;
 
-  async function init() {
-    await loadAllUsers();
-    await loadConversations();
-    renderConversationList();
-    subscribeToNotifications();
-    updateUnreadBadge();
-    bindGlobalEvents();
-    console.log('[ChatModule] Inicializado com sucesso.');
-  }
-
-  // ---------------------------------------------------------------------------
-  // USUÁRIOS — cache para menções e exibição de nomes
-  // ---------------------------------------------------------------------------
-
-  async function loadAllUsers() {
-    state.allUsers = window.DB.usuarios
-      .filter(u => u.status === true)
-      .map(u => ({
-          id: u.id,
-          nome: u.nome,
-          cargo: u.cargo,
-          diretoria: u.diretoria
-      }));
-  }
-       
-  function getUserById(id) {
-    return state.allUsers.find(u => u.id === id) || { nome: 'Usuário', cargo: '', diretoria: '' };
-  }
-
-  function getInitials(nome) {
-    return (nome || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
-  }
-
-  // ---------------------------------------------------------------------------
-  // CONVERSAS — listar, criar, abrir
-  // ---------------------------------------------------------------------------
-
-  async function loadConversations() {
-    state.conversations =
-      DB.chat_conversations.map(conv => {
-        const msgs = DB.chat_messages
-          .filter(m => m.conversation_id === conv.id);
-
-        const last = msgs[msgs.length - 1];
-
-        return {
-            conversation_id: conv.id,
-            conv_name: conv.name,
-            conv_type: conv.type,
-            unread_count: 0,
-            last_message_body: last ? last.body : '',
-            last_message_at: last ? last.sent_at : null
-        };
-      });
-  }
-
-  async function openOrCreateDirectConversation(targetUserId) {
-    let conversation = DB.chat_conversations.find(conv => {
-        if (!conv.participants) return false;
-
-        return (
-            conv.participants.includes(window.currentUser?.id) &&
-            conv.participants.includes(targetUserId)
-        );
-    });
-
-    if (!conversation) {
-        conversation = {
-            id: 'conv_' + Date.now(),
-            type: 'direct',
-            name: 'Conversa',
-            participants: [
-                window.currentUser?.id,
-                targetUserId
-            ]
-        };
-
-        DB.chat_conversations.push(conversation);
-    }
-
-    await loadConversations();
-    renderConversationList();
-    await openConversation(conversation.id);
-    navigateToChat();
-  }
-
-  async function createGroup(name, description, memberIds) {
-    // Criar conversa
-    const { data: conv, error: convErr } = await supabase
-      .from('chat_conversations')
-      .insert({ type: 'group', name, description, created_by: window.currentUser?.id })
-      .select('id')
-      .single();
-    if (convErr) { console.error('[Chat] Erro ao criar grupo:', convErr); return null; }
-
-    // Adicionar membros (incluindo o criador como admin)
-    const members = [
-      { conversation_id: conv.id, user_id: window.currentUser?.id, is_admin: true },
-      ...memberIds.filter(id => id !== window.currentUser?.id).map(id => ({
-        conversation_id: conv.id, user_id: id, is_admin: false
-      }))
-    ];
-    const { error: memErr } = await supabase
-      .from('chat_conversation_members')
-      .insert(members);
-    if (memErr) { console.error('[Chat] Erro ao adicionar membros:', memErr); return null; }
-
-    await loadConversations();
-    renderConversationList();
-    await openConversation(conv.id);
-    return conv.id;
-  }
-function scrollToBottom() {
-
-    const container = document.getElementById('chat-messages');
-
-    if (!container) return;
-
-    container.scrollTop = container.scrollHeight;
-
+  // Limpa o input e re-renderiza
+  inputEl.value = '';
+  openConversation(chatState.selectedConversationId);
 }
-  async function openConversation(conversationId) {
-    // Unsubscribe da conversa anterior
-    state.realtimeChannel = null;
 
-    state.activeConversationId = conversationId;
-    state.isLoadingMessages = true;
-
-    // Modo mock: leitura automática
-    //await supabase.rpc('mark_conversation_read', {
-    //  p_conversation_id: conversationId,
-    //  p_user_id: window.currentUser?.id
-    //});
-
-    // Carregar histórico inicial (últimas N mensagens)
-    await loadMessages(conversationId, true);
-
-    // Subscrever ao canal Realtime desta conversa
-    subscribeToConversation(conversationId);
-
-    // Atualizar UI
-    renderConversationHeader(conversationId);
-    renderMessages(conversationId);
-    updateUnreadBadge();
-    highlightActiveConversation(conversationId);
-    scrollToBottom();
-
-    state.isLoadingMessages = false;
-  }
-
-  // ---------------------------------------------------------------------------
-  // MENSAGENS — carregar, enviar, renderizar
-  // ---------------------------------------------------------------------------
-
-  async function loadMessages(conversationId, reset = false) {
-    const msgs = DB.chat_messages
-        .filter(msg => msg.conversation_id === conversationId)
-        .sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at));
-
-    state.messages[conversationId] = msgs;
-
-    state.messageCursors[conversationId] = {
-        from: 0,
-        to: msgs.length - 1
-    };
-  }
-
-  async function sendMessage(body, attachments = []) {
-    const convId = state.activeConversationId;
-
-    if (!convId || !body.trim()) return;
-
-    const msg = {
-        id: 'msg_' + Date.now(),
-        conversation_id: convId,
-        sender_id: window.currentUser?.id,
-        body: body.trim(),
-        sent_at: new Date().toISOString()
-    };
-
-    DB.chat_messages.push(msg);
-
-    if (!state.messages[convId]) {
-        state.messages[convId] = [];
-    }
-
-    state.messages[convId].push(msg);
-    renderMessages(convId);
-
-    const input = document.getElementById('chat-input');
-    if (input) {
-        input.value = '';
-    }
-
-    if (typeof scrollToBottom === 'function') {
-        scrollToBottom();
-    }
-  }
-
-  async function deleteMessage(messageId) {
-    DB.chat_messages = DB.chat_messages.filter(msg => msg.id !== messageId);
-
-    Object.keys(state.messages).forEach(convId => {
-        state.messages[convId] = (state.messages[convId] || [])
-            .filter(msg => msg.id !== messageId);
-    });
-
-    // Remove visualmente a bolha de mensagem do DOM
-    const msgEl = document.querySelector(`[data-msg-id="${messageId}"]`);
-    if (msgEl) msgEl.remove();
-
-    // Atualiza o preview ("última mensagem") na lista de conversas
-    await loadConversations();
-    renderConversationList();
-    if (state.activeConversationId) {
-      highlightActiveConversation(state.activeConversationId);
-    }
-  }
-
-  async function editMessage(messageId, newBody) {
-    if (!newBody.trim()) return;
-
-    // Modo mock: edita diretamente no in-memory DB
-    const msg = DB.chat_messages.find(m => m.id === messageId && m.sender_id === window.currentUser?.id);
-    if (!msg) return;
-
-    msg.body = newBody.trim();
-    msg.edited_at = new Date().toISOString();
-
-    // Sincroniza com o cache de mensagens do estado
-    Object.keys(state.messages).forEach(convId => {
-      const cached = (state.messages[convId] || []).find(m => m.id === messageId);
-      if (cached) {
-        cached.body = msg.body;
-        cached.edited_at = msg.edited_at;
+// ── 7. BIND DE EVENTOS ───────────────────────────────────────────
+function bindChatEvents() {
+  // Delegação de evento na lista (evita rebind em cada render)
+  const listEl = document.getElementById('conversations-list');
+  if (listEl) {
+    listEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.conversation-item');
+      if (item) {
+        openConversation(item.dataset.convId);
       }
     });
 
-    updateMessageInView(msg);
-  }
-
-  // Chamado pelo botão "Salvar" no modo de edição inline (ver bindMessageActions)
-  function confirmEdit(messageId, btnEl) {
-    const msgEl = btnEl.closest('[data-msg-id]');
-    const textarea = msgEl?.querySelector('.chat-edit-input');
-    if (!textarea) return;
-    editMessage(messageId, textarea.value);
-  }
-
-  // Chamado pelo botão "Cancelar" no modo de edição inline para restaurar o texto original
-  function getOriginalBody(messageId) {
-    const msg = (state.messages[state.activeConversationId] || []).find(m => m.id === messageId);
-    return renderMentionText(escapeHtml(msg?.body || ''));
-  }
-
-  // ---------------------------------------------------------------------------
-  // REALTIME — subscriptions
-  // ---------------------------------------------------------------------------
-
-  function subscribeToConversation(conversationId) {
-    console.log('[Chat] Realtime desativado (modo mock)');
-    return;
-  }
-
-  function subscribeToNotifications() {
-    console.log('[Chat] Notificações realtime desativadas (modo mock)');
-    return;
-  }
-
-  // Limpar subscriptions ao sair do módulo
-  async function destroy() {
-    state.realtimeChannel = null;
-    state.notifChannel = null;
-  }
-
-  // ---------------------------------------------------------------------------
-  // ANEXOS
-  // ---------------------------------------------------------------------------
-
-  async function uploadAttachment(messageId, file) {
-    console.log('[Chat Mock] Anexo recebido:', file.name);
-
-    if (!DB.chat_attachments) {
-        DB.chat_attachments = [];
-    }
-
-    DB.chat_attachments.push({
-        id: 'att_' + Date.now(),
-        message_id: messageId,
-        uploader_id: window.currentUser?.id,
-        file_url: '#',
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type
-    });
-  }
-
-  // ---------------------------------------------------------------------------
-  // COMENTÁRIOS CONTEXTUAIS
-  // ---------------------------------------------------------------------------
-
-  async function loadContextualComments(entityType, entityId) {
-    const { data, error } = await supabase
-      .from('contextual_comments')
-      .select('id, author_id, body, created_at, edited_at')
-      .eq('entity_type', entityType)
-      .eq('entity_id', entityId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
-
-    if (error) { console.error('[Chat] Erro ao carregar comentários:', error); return []; }
-    return data || [];
-  }
-
-  async function postContextualComment(entityType, entityId, body) {
-    if (!body.trim()) return;
-    console.log('[Comentário Mock]', entityType, entityId, body);
-  }
-
-  async function deleteContextualComment(commentId) {
-    const { error } = await supabase
-      .from('contextual_comments')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', commentId)
-      .eq('author_id', window.currentUser?.id);
-    if (error) showToast('Não foi possível remover o comentário.', 'error');
-  }
-
-  // ---------------------------------------------------------------------------
-  // MENÇÕES
-  // ---------------------------------------------------------------------------
-
-  function extractMentions(text) {
-    const regex = /@\[([^\]]+)\]\(([^)]+)\)/g; // formato @[Nome](uuid)
-    const ids = [];
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      ids.push(match[2]);
-    }
-    return ids;
-  }
-
-  function renderMentionText(text) {
-    return text
-      .replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="chat-mention">@$1</span>')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/&lt;span class="chat-mention"&gt;@([^&]+)&lt;\/span&gt;/g, '<span class="chat-mention">@$1</span>');
-  }
-
-  function handleMentionInput(inputEl) {
-    const val = inputEl.value;
-    const cursorPos = inputEl.selectionStart;
-    const textBefore = val.substring(0, cursorPos);
-    const atMatch = textBefore.match(/@(\w*)$/);
-
-    if (atMatch) {
-      state.mentionQuery = atMatch[1].toLowerCase();
-      state.mentionCandidates = state.allUsers.filter(u =>
-        u.id !== window.currentUser?.id &&
-        u.nome.toLowerCase().includes(state.mentionQuery)
-      ).slice(0, 6);
-      renderMentionPicker(inputEl);
-    } else {
-      closeMentionPicker();
-    }
-  }
-
-  function renderMentionPicker(inputEl) {
-    let picker = document.getElementById('mention-picker');
-    if (!picker) {
-      picker = document.createElement('div');
-      picker.id = 'mention-picker';
-      picker.className = 'mention-picker';
-      document.getElementById('chat-input-area')?.appendChild(picker);
-    }
-
-    if (state.mentionCandidates.length === 0) {
-      picker.style.display = 'none';
-      return;
-    }
-
-    picker.innerHTML = state.mentionCandidates.map(u => `
-      <div class="mention-item" data-id="${u.id}" data-name="${u.nome}">
-        <div class="mention-avatar">${getInitials(u.nome)}</div>
-        <div class="mention-info">
-          <span class="mention-name">${u.nome}</span>
-          <span class="mention-role">${u.cargo} · ${u.diretoria}</span>
-        </div>
-      </div>
-    `).join('');
-
-    picker.querySelectorAll('.mention-item').forEach(item => {
-      item.addEventListener('click', () => {
-        insertMention(inputEl, item.dataset.id, item.dataset.name);
-        closeMentionPicker();
-      });
-    });
-
-    picker.style.display = 'block';
-  }
-
-  // as funções internas complementares (insertMention, closeMentionPicker, etc) continuam inalteradas...
-  function insertMention(inputEl, userId, userName) {
-    const val = inputEl.value;
-    const cursorPos = inputEl.selectionStart;
-    const textBefore = val.substring(0, cursorPos);
-    const textAfter = val.substring(cursorPos);
-    const newBefore = textBefore.replace(/@\w*$/, `@[${userName}](${userId}) `);
-    inputEl.value = newBefore + textAfter;
-    inputEl.focus();
-    const newPos = newBefore.length;
-    inputEl.setSelectionRange(newPos, newPos);
-  }
-
-  function closeMentionPicker() {
-    const picker = document.getElementById('mention-picker');
-    if (picker) picker.style.display = 'none';
-    state.mentionCandidates = [];
-  }
-    // ---------------------------------------------------------------------------
-  // MODAL GENÉRICO (Nova Conversa / Novo Grupo)
-  // ---------------------------------------------------------------------------
-
-  function showModal(title, bodyHtml, onConfirm) {
-    closeModal(); // remove qualquer modal existente antes de abrir outro
-
-    const overlay = document.createElement('div');
-    overlay.id = 'chat-modal-overlay';
-    overlay.className = 'chat-modal-overlay';
-
-    overlay.innerHTML = `
-      <div class="chat-modal">
-        <div class="chat-modal-header">
-          <h3>${escapeHtml(title)}</h3>
-          <button class="chat-modal-close" id="chat-modal-close-btn" title="Fechar">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <div class="chat-modal-body">${bodyHtml}</div>
-        ${onConfirm ? `
-        <div class="chat-modal-footer">
-          <button class="btn btn-secondary" id="chat-modal-cancel-btn">Cancelar</button>
-          <button class="btn btn-accent" id="chat-modal-confirm-btn">Confirmar</button>
-        </div>` : ''}
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    overlay.querySelector('#chat-modal-close-btn')?.addEventListener('click', closeModal);
-    overlay.querySelector('#chat-modal-cancel-btn')?.addEventListener('click', closeModal);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeModal();
-    });
-
-    if (onConfirm) {
-      overlay.querySelector('#chat-modal-confirm-btn')?.addEventListener('click', onConfirm);
-    }
-
-    requestAnimationFrame(() => overlay.classList.add('active'));
-  }
-
-  function closeModal() {
-    const overlay = document.getElementById('chat-modal-overlay');
-    if (overlay) overlay.remove();
-  }
-
-  // ---------------------------------------------------------------------------
-  // BUSCA DE MENSAGENS
-  // ---------------------------------------------------------------------------
-
-  async function searchMessages(query) {
-    if (!query || query.length < 3) return [];
-    return DB.chat_messages.filter(msg =>
-        msg.body && msg.body.toLowerCase().includes(query.toLowerCase())
-    );
-  }
-
-  async function searchComments(query) { return []; }
-
-  // ---------------------------------------------------------------------------
-  // BADGE DE NÃO-LIDOS
-  // ---------------------------------------------------------------------------
-
-  async function updateUnreadBadge() {
-    const chatBadge = document.getElementById('chat-unread-badge');
-    if (chatBadge) chatBadge.style.display = 'none';
-  }
-
-  // ---------------------------------------------------------------------------
-  // RENDER — conversas e mensagens
-  // ---------------------------------------------------------------------------
-
-  function formatChatTime(date) {
-
-    if (!date) return '';
-
-    return new Date(date).toLocaleTimeString(
-        'pt-BR',
-        {
-            hour: '2-digit',
-            minute: '2-digit'
-        }
-    );
-
-}
-    
-    function escapeHtml(text) {
-
-    if (!text) return '';
-
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-
-}
-    
-    function renderConversationList() {
-    const container = document.getElementById('chat-conversations-list');
-    if (!container) return;
-
-    if (state.conversations.length === 0) {
-      container.innerHTML = `
-        <div class="chat-empty-state">
-          <i class="fas fa-comments"></i>
-          <p>Nenhuma conversa ainda.</p>
-          <p>Clique em <strong>Nova conversa</strong> para começar.</p>
-        </div>`;
-      return;
-    }
-
-    container.innerHTML = state.conversations.map(conv => {
-      const isActive = conv.conversation_id === state.activeConversationId;
-      const unread = conv.unread_count || 0;
-      const lastMsg = conv.last_message_body
-        ? conv.last_message_body.substring(0, 50) + (conv.last_message_body.length > 50 ? '…' : '')
-        : 'Sem mensagens';
-      const time = conv.last_message_at ? formatChatTime(new Date(conv.last_message_at)) : '';
-      const avatarText = getInitials(conv.conv_name || '?');
-      const isGroup = conv.conv_type === 'group';
-
-      return `
-        <div class="chat-conv-item ${isActive ? 'active' : ''}" data-conv-id="${conv.conversation_id}">
-          <div class="chat-conv-avatar ${isGroup ? 'group' : ''}">
-            ${isGroup ? '<i class="fas fa-users"></i>' : avatarText}
-          </div>
-          <div class="chat-conv-info">
-            <div class="chat-conv-header">
-              <span class="chat-conv-name">${escapeHtml(conv.conv_name || 'Conversa')}</span>
-              <span class="chat-conv-time">${time}</span>
-            </div>
-            <div class="chat-conv-preview">
-              <span class="chat-conv-last">${escapeHtml(lastMsg)}</span>
-              ${unread > 0 ? `<span class="chat-unread-dot">${unread}</span>` : ''}
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-
-    container.querySelectorAll('.chat-conv-item').forEach(item => {
-      item.addEventListener('click', () => openConversation(item.dataset.convId));
-    });
-  }
-
-  function highlightActiveConversation(conversationId) {
-    document.querySelectorAll('.chat-conv-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.convId === conversationId);
-    });
-  }
-
-  function renderMessages(conversationId) {
-    const container = document.getElementById('chat-messages-container');
-    if (!container) return;
-
-    const msgs = state.messages[conversationId] || [];
-    if (msgs.length === 0) {
-      container.innerHTML = `
-        <div class="chat-empty-messages">
-          <i class="fas fa-comment-dots"></i>
-          <p>Nenhuma mensagem ainda. Seja o primeiro a escrever!</p>
-        </div>`;
-      return;
-    }
-
-    container.innerHTML = msgs.map(msg => renderMessageBubble(msg)).join('');
-    bindMessageActions();
-  }
-
-  function renderMessageBubble(msg) {
-    const isOwn = msg.sender_id === window.currentUser?.id;
-    const user = getUserById(msg.sender_id);
-    const time = formatChatTime(new Date(msg.sent_at));
-    const edited = msg.edited_at ? '<span class="chat-edited-tag">(editado)</span>' : '';
-    const safeBody = renderMentionText(escapeHtml(msg.body || ''));
-
-    const attachmentsHtml = (msg.chat_attachments || []).map(att => {
-      const isImage = att.mime_type?.startsWith('image/');
-      return isImage
-        ? `<a href="${att.file_url}" target="_blank" class="chat-attachment-img">
-             <img src="${att.file_url}" alt="${escapeHtml(att.file_name)}" loading="lazy">
-           </a>`
-        : `<a href="${att.file_url}" target="_blank" class="chat-attachment-file">
-             <i class="fas fa-paperclip"></i>
-             <span>${escapeHtml(att.file_name)}</span>
-             <span class="chat-file-size">${formatFileSize(att.file_size)}</span>
-           </a>`;
-    }).join('');
-
-    const actionsHtml = isOwn ? `
-      <div class="chat-msg-actions">
-        <button class="chat-msg-btn" data-action="edit" data-id="${msg.id}" title="Editar">
-          <i class="fas fa-pencil-alt"></i>
-        </button>
-        <button class="chat-msg-btn danger" data-action="delete" data-id="${msg.id}" title="Remover">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>` : '';
-
-    return `
-      <div class="chat-msg ${isOwn ? 'own' : 'other'}" data-msg-id="${msg.id}">
-        ${!isOwn ? `<div class="chat-msg-avatar">${getInitials(user.nome)}</div>` : ''}
-        <div class="chat-msg-content">
-          ${!isOwn ? `<span class="chat-msg-author">${escapeHtml(user.nome)}</span>` : ''}
-          <div class="chat-msg-bubble">
-            <p class="chat-msg-text">${safeBody}</p>
-            ${attachmentsHtml}
-            <span class="chat-msg-time">${time} ${edited}</span>
-          </div>
-          ${actionsHtml}
-        </div>
-      </div>`;
-  }
-
-  function appendMessageToView(msg) {
-    const container = document.getElementById('chat-messages-container');
-    if (!container) return;
-    const emptyState = container.querySelector('.chat-empty-messages');
-    if (emptyState) emptyState.remove();
-
-    const div = document.createElement('div');
-    div.innerHTML = renderMessageBubble(msg);
-    container.appendChild(div.firstElementChild);
-    bindMessageActions();
-    scrollToBottom();
-  }
-
-  function updateMessageInView(updatedMsg) {
-    const el = document.querySelector(`[data-msg-id="${updatedMsg.id}"]`);
-    if (!el) return;
-    const bodyEl = el.querySelector('.chat-msg-text');
-    if (bodyEl) bodyEl.innerHTML = renderMentionText(escapeHtml(updatedMsg.body || ''));
-
-    const timeEl = el.querySelector('.chat-msg-time');
-    if (timeEl && updatedMsg.edited_at) {
-      timeEl.innerHTML = `${formatChatTime(new Date(updatedMsg.sent_at))} <span class="chat-edited-tag">(editado)</span>`;
-    }
-  }
-
-  function renderConversationHeader(conversationId) {
-    const conv = state.conversations.find(c => c.conversation_id === conversationId);
-    const headerEl = document.getElementById('chat-conv-header-title');
-    const subtitleEl = document.getElementById('chat-conv-header-subtitle');
-    if (!conv || !headerEl) return;
-
-    headerEl.textContent = conv.conv_name || 'Conversa';
-    if (subtitleEl) {
-      subtitleEl.textContent = conv.conv_type === 'group'
-        ? `${conv.member_count || 0} participantes`
-        : conv.conv_type === 'direct' ? 'Conversa direta' : '';
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // RENDER — comentários contextuais
-  // ---------------------------------------------------------------------------
-
-  async function renderContextualCommentPanel(entityType, entityId, containerEl) {
-    if (!containerEl) return;
-    const comments = await loadContextualComments(entityType, entityId);
-
-    containerEl.innerHTML = `
-      <div class="ctx-comments-panel">
-        <div class="ctx-comments-header">
-          <i class="fas fa-comment-alt"></i>
-          <span>Comentários</span>
-          <span class="ctx-comments-count">${comments.length}</span>
-        </div>
-        <div class="ctx-comments-list" id="ctx-comments-${entityType}-${entityId}">
-          ${comments.length === 0
-            ? '<p class="ctx-no-comments">Nenhum comentário ainda.</p>'
-            : comments.map(c => renderCommentItem(c)).join('')}
-        </div>
-        <div class="ctx-comment-form">
-          <textarea id="ctx-input-${entityType}-${entityId}" class="ctx-comment-input" placeholder="Escreva um comentário... (suporta @menção)" rows="2" maxlength="2000"></textarea>
-          <button class="btn btn-accent ctx-comment-submit" data-entity-type="${entityType}" data-entity-id="${entityId}">
-            <i class="fas fa-paper-plane"></i>
-          </button>
-        </div>
-      </div>`;
-
-    const submitBtn = containerEl.querySelector('.ctx-comment-submit');
-    const inputEl = containerEl.querySelector(`#ctx-input-${entityType}-${entityId}`);
-
-    if (submitBtn && inputEl) {
-      submitBtn.addEventListener('click', async () => {
-        await postContextualComment(entityType, entityId, inputEl.value);
-        inputEl.value = '';
-        await renderContextualCommentPanel(entityType, entityId, containerEl);
-      });
-      inputEl.addEventListener('input', () => handleMentionInput(inputEl));
-      inputEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) submitBtn.click();
-      });
-    }
-
-    containerEl.querySelectorAll('.ctx-comment-delete').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Remover este comentário?')) return;
-        await deleteContextualComment(btn.dataset.id);
-        await renderContextualCommentPanel(entityType, entityId, containerEl);
-      });
-    });
-  }
-
-  function renderCommentItem(comment) {
-    const user = getUserById(comment.author_id);
-    const isOwn = comment.author_id === window.currentUser?.id;
-    const time = formatChatTime(new Date(comment.created_at));
-
-    return `
-      <div class="ctx-comment-item" data-comment-id="${comment.id}">
-        <div class="ctx-comment-avatar">${getInitials(user.nome)}</div>
-        <div class="ctx-comment-body">
-          <div class="ctx-comment-meta">
-            <span class="ctx-comment-author">${escapeHtml(user.nome)}</span>
-            <span class="ctx-comment-time">${time}</span>
-            ${isOwn ? `<button class="ctx-comment-delete" data-id="${comment.id}" title="Remover"><i class="fas fa-times"></i></button>` : ''}
-          </div>
-          <p class="ctx-comment-text">${renderMentionText(escapeHtml(comment.body))}</p>
-        </div>
-      </div>`;
-  }
-
-  // ---------------------------------------------------------------------------
-  // EVENTOS GLOBAL E MODAIS
-  // ---------------------------------------------------------------------------
-
-  function bindGlobalEvents() {
-    const inputEl = document.getElementById('chat-input');
-    if (inputEl) {
-      inputEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+    // Acessibilidade: Enter/Space também abre
+    listEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const item = e.target.closest('.conversation-item');
+        if (item) {
           e.preventDefault();
-          handleSendMessage();
+          openConversation(item.dataset.convId);
         }
-        if (e.key === 'Escape') closeMentionPicker();
-      });
-      inputEl.addEventListener('input', () => handleMentionInput(inputEl));
-    }
-
-    document.getElementById('btn-send-message')?.addEventListener('click', handleSendMessage);
-    document.getElementById('btn-new-conversation')?.addEventListener('click', () => openNewConversationModal());
-    document.getElementById('btn-new-group')?.addEventListener('click', () => openNewGroupModal());
-
-    const searchInput = document.getElementById('chat-search-input');
-    if (searchInput) {
-      let debounceTimer;
-      searchInput.addEventListener('input', () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(async () => {
-          const results = await searchMessages(searchInput.value);
-          renderSearchResults(results);
-        }, 300);
-      });
-    }
-
-    document.getElementById('btn-attach-file')?.addEventListener('click', () => document.getElementById('chat-file-input')?.click());
-    document.getElementById('chat-file-input')?.addEventListener('change', (e) => {
-      const files = Array.from(e.target.files || []);
-      files.forEach(f => addAttachmentPreview(f));
-      e.target.value = '';
-    });
-
-    const messagesContainer = document.getElementById('chat-messages-container');
-    if (messagesContainer) {
-      messagesContainer.addEventListener('scroll', async () => {
-        if (messagesContainer.scrollTop === 0 && state.activeConversationId && !state.isLoadingMessages) {
-          state.isLoadingMessages = true;
-          const prevScrollHeight = messagesContainer.scrollHeight;
-          await loadMessages(state.activeConversationId, false);
-          renderMessages(state.activeConversationId);
-          messagesContainer.scrollTop = messagesContainer.scrollHeight - prevScrollHeight;
-          state.isLoadingMessages = false;
-        }
-      });
-    }
-  }
-
-  function bindMessageActions() {
-    document.querySelectorAll('[data-action="delete"]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Remover esta mensagem?')) return;
-        await deleteMessage(btn.dataset.id);
-      });
-    });
-
-    document.querySelectorAll('[data-action="edit"]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const msgEl = document.querySelector(`[data-msg-id="${btn.dataset.id}"]`);
-        const textEl = msgEl?.querySelector('.chat-msg-text');
-        if (!textEl) return;
-
-        const original = state.messages[state.activeConversationId]?.find(m => m.id === btn.dataset.id)?.body || '';
-
-        textEl.innerHTML = `
-          <textarea class="chat-edit-input">${escapeHtml(original)}</textarea>
-          <div class="chat-edit-actions">
-            <button class="btn btn-accent" style="font-size:11px; padding:4px 10px;" onclick="ChatModule.confirmEdit('${btn.dataset.id}', this)">
-              <i class="fas fa-check"></i> Salvar
-            </button>
-            <button class="btn btn-secondary" style="font-size:11px; padding:4px 10px;" onclick="this.closest('[data-msg-id]').querySelector('.chat-msg-text').innerHTML = ChatModule._getOriginalBody('${btn.dataset.id}')">
-              Cancelar
-            </button>
-          </div>`;
-      });
+      }
     });
   }
 
-  async function handleSendMessage() {
-    const inputEl = document.getElementById('chat-input-field');
-    const body = inputEl?.value?.trim();
-    if (!body) return;
-    await sendMessage(body);
-  }
+  // Botão enviar
+  const sendBtn = document.getElementById('btn-send-message');
+  if (sendBtn) sendBtn.addEventListener('click', sendMockMessage);
 
-  function openNewConversationModal() {
-    const othersHtml = state.allUsers
-      .filter(u => u.id !== window.currentUser?.id)
-      .map(u => `
-        <div class="user-picker-item" data-id="${u.id}">
-          <div class="user-picker-avatar">${getInitials(u.nome)}</div>
-          <div class="user-picker-info">
-            <span>${escapeHtml(u.nome)}</span>
-            <small>${u.cargo} · ${u.diretoria}</small>
-          </div>
-        </div>`).join('');
-
-    showModal('Nova Conversa Direta', `
-      <p style="font-size:12px; color:var(--text-secondary); margin-bottom:16px;">
-        Selecione um membro para iniciar uma conversa privada.
-      </p>
-      <div class="user-picker-list">${othersHtml}</div>
-    `, null);
-
-    document.querySelectorAll('.user-picker-item').forEach(item => {
-      item.addEventListener('click', async () => {
-        closeModal();
-        await openOrCreateDirectConversation(item.dataset.id);
-      });
+  // Enter no input
+  const inputField = document.getElementById('chat-input-field');
+  if (inputField) {
+    inputField.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMockMessage();
+      }
     });
   }
 
-  function openNewGroupModal() {
-    const usersCheckboxHtml = state.allUsers
-      .filter(u => u.id !== window.currentUser?.id)
-      .map(u => `
-        <label class="group-member-option">
-          <input type="checkbox" value="${u.id}">
-          <div class="user-picker-avatar small">${getInitials(u.nome)}</div>
-          <span>${escapeHtml(u.nome)} — ${u.cargo}</span>
-        </label>`).join('');
-
-    showModal('Criar Novo Grupo', `
-      <div class="form-group" style="margin-bottom:12px;">
-        <label>Nome do Grupo</label>
-        <input type="text" id="modal-group-name" class="form-control" placeholder="Ex: Planejamento de Eventos" maxlength="80">
-      </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label>Descrição (opcional)</label>
-        <input type="text" id="modal-group-desc" class="form-control" placeholder="Sobre o que é este grupo?" maxlength="200">
-      </div>
-      <div class="form-group">
-        <label>Participantes</label>
-        <div class="group-member-list">${usersCheckboxHtml}</div>
-      </div>
-    `, async () => {
-      const name = document.getElementById('modal-group-name')?.value?.trim();
-      if (!name) { showToast('Informe o nome do grupo.', 'error'); return; }
-      const description = document.getElementById('modal-group-desc')?.value?.trim();
-      const memberIds = [...document.querySelectorAll('.group-member-option input:checked')].map(el => el.value);
-      if (memberIds.length === 0) { showToast('Adicione pelo menos um participante.', 'error'); return; }
-      closeModal();
-      await createGroup(name, description, memberIds);
+  // Busca de conversas
+  const searchInput = document.getElementById('chat-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      chatState.filteredConversations = chatState.conversations.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        (c.lastMessage ?? '').toLowerCase().includes(query)
+      );
+      renderConversationList(chatState.filteredConversations);
     });
   }
+}
 
-  // O restante dos métodos privados ou expostos que não utilizam a variável (como _pending ou APIs de preview) seguem o mesmo fluxo.
-  return {
-    init,
-    destroy,
-    renderContextualCommentPanel,
-    confirmEdit,
-    _getOriginalBody: getOriginalBody
-  };
-
-})();
+// ── 8. GATILHO: chama initChatModule quando o módulo é ativado ───
+// Localize no seu app.js onde os módulos são ativados (provavelmente
+// algo como: document.querySelectorAll('.nav-item').forEach(...))
+// E adicione esta chamada quando data-target === 'mod-comunicacao':
+//
+//   if (targetId === 'mod-comunicacao') {
+//     initChatModule();   // ← adicione esta linha
+//   }
