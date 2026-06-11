@@ -3954,11 +3954,179 @@ function bindChatEvents() {
   }
 }
 
-// ── 8. GATILHO: chama initChatModule quando o módulo é ativado ───
-// Localize no seu app.js onde os módulos são ativados (provavelmente
-// algo como: document.querySelectorAll('.nav-item').forEach(...))
-// E adicione esta chamada quando data-target === 'mod-comunicacao':
-//
-//   if (targetId === 'mod-comunicacao') {
-//     initChatModule();   // ← adicione esta linha
-//   }
+// ================================================================
+// MÓDULO: NOVA CONVERSA — Modal de seleção de usuário
+// ================================================================
+// Arquitetura isolada para futura integração Supabase.
+// Para integrar, substitua apenas createConversation() por:
+//   const { data } = await supabase
+//     .from('chat_conversations')
+//     .insert({ participant_a: currentUser.id, participant_b: targetUser.id })
+//     .select().single();
+
+let newChatState = { selectedUserId: null };
+
+function openNewChatModal() {
+  newChatState.selectedUserId = null;
+  const overlay  = document.getElementById('new-chat-overlay');
+  const searchEl = document.getElementById('new-chat-search');
+  const startBtn = document.getElementById('btn-start-conversation');
+  if (!overlay) return;
+  if (searchEl) searchEl.value = '';
+  if (startBtn) startBtn.disabled = true;
+  renderNewChatUserList('');
+  overlay.style.display = 'flex';
+  setTimeout(function() { if (searchEl) searchEl.focus(); }, 80);
+}
+
+function closeNewChatModal() {
+  const overlay = document.getElementById('new-chat-overlay');
+  if (overlay) overlay.style.display = 'none';
+  newChatState.selectedUserId = null;
+}
+
+function renderNewChatUserList(query) {
+  const listEl  = document.getElementById('new-chat-user-list');
+  const emptyEl = document.getElementById('new-chat-empty');
+  if (!listEl) return;
+
+  const q = (query || '').toLowerCase().trim();
+  const users = (DB.usuarios || []).filter(function(u) {
+    if (!u.status) return false;
+    if (currentUser && u.id === currentUser.id) return false;
+    if (!q) return true;
+    return (
+      u.nome.toLowerCase().indexOf(q) !== -1 ||
+      u.cargo.toLowerCase().indexOf(q) !== -1 ||
+      u.diretoria.toLowerCase().indexOf(q) !== -1
+    );
+  });
+
+  if (users.length === 0) {
+    listEl.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+
+  listEl.style.display = 'flex';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  listEl.innerHTML = users.map(function(u) {
+    const existingConv = chatState.conversations.find(function(c) { return c.participantId === u.id; });
+    const parts = u.nome.split(' ');
+    const initials = parts.slice(0, 2).map(function(w) { return w[0] || ''; }).join('');
+    const isSelected = newChatState.selectedUserId === u.id;
+    const diretoriaLabel = u.diretoria !== 'Nenhuma' ? u.diretoria : 'Geral';
+    const existingBadge = existingConv
+      ? '<span class="new-chat-badge-existing"><i class="fas fa-comments"></i> Existente</span>'
+      : '';
+    return (
+      '<div class="new-chat-user-item' + (isSelected ? ' selected' : '') + '"' +
+        ' data-user-id="' + u.id + '" tabindex="0" role="option" aria-selected="' + isSelected + '">' +
+        '<div class="new-chat-avatar">' + initials + '</div>' +
+        '<div class="new-chat-user-info">' +
+          '<span class="new-chat-user-name">' + u.nome + '</span>' +
+          '<span class="new-chat-user-meta">' + u.cargo + ' · ' + diretoriaLabel + '</span>' +
+        '</div>' +
+        existingBadge +
+      '</div>'
+    );
+  }).join('');
+
+  listEl.querySelectorAll('.new-chat-user-item').forEach(function(item) {
+    function selectUser() {
+      newChatState.selectedUserId = item.dataset.userId;
+      listEl.querySelectorAll('.new-chat-user-item').forEach(function(el) {
+        el.classList.toggle('selected', el.dataset.userId === newChatState.selectedUserId);
+      });
+      const startBtn = document.getElementById('btn-start-conversation');
+      if (startBtn) startBtn.disabled = false;
+    }
+    item.addEventListener('click', selectUser);
+    item.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectUser(); }
+    });
+  });
+}
+
+// ── createConversation: isolado para substituição futura por Supabase ──
+function createConversation(targetUser) {
+  // Verifica duplicata
+  const existing = chatState.conversations.find(function(c) {
+    return c.participantId === targetUser.id;
+  });
+  if (existing) {
+    logSQL('SELECT id FROM chat_conversations WHERE participant_b = \'' + targetUser.id + '\'; -- reutiliza conversa existente', 'success');
+    return existing.id;
+  }
+
+  // Cria nova conversa mock
+  const newId = 'conv-' + Date.now();
+  const newConv = {
+    id:            newId,
+    participantId: targetUser.id,
+    name:          targetUser.nome,
+    role:          targetUser.diretoria !== 'Nenhuma' ? targetUser.diretoria : targetUser.cargo,
+    avatar:        targetUser.avatar || null,
+    lastMessage:   '',
+    timestamp:     'Agora',
+    unread:        0,
+    messages:      [],
+  };
+
+  chatState.conversations.unshift(newConv);
+  chatState.filteredConversations = chatState.conversations.slice();
+
+  logSQL(
+    'INSERT INTO chat_conversations (id, participant_a, participant_b, created_at) VALUES (\'' +
+    newId + '\', \'' + (currentUser ? currentUser.id : 'null') + '\', \'' + targetUser.id + '\', NOW()); -- Mock',
+    'trigger'
+  );
+
+  return newId;
+}
+
+// ── bindNewChatModalEvents: registra todos os listeners do modal ──
+function bindNewChatModalEvents() {
+  var btnNew = document.getElementById('btn-new-chat');
+  if (btnNew) btnNew.addEventListener('click', openNewChatModal);
+
+  var btnClose = document.getElementById('btn-close-new-chat');
+  if (btnClose) btnClose.addEventListener('click', closeNewChatModal);
+
+  var btnCancel = document.getElementById('btn-cancel-new-chat');
+  if (btnCancel) btnCancel.addEventListener('click', closeNewChatModal);
+
+  var overlay = document.getElementById('new-chat-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeNewChatModal();
+    });
+  }
+
+  var searchEl = document.getElementById('new-chat-search');
+  if (searchEl) {
+    searchEl.addEventListener('input', function(e) {
+      renderNewChatUserList(e.target.value);
+    });
+  }
+
+  var btnStart = document.getElementById('btn-start-conversation');
+  if (btnStart) {
+    btnStart.addEventListener('click', function() {
+      if (!newChatState.selectedUserId) return;
+      var targetUser = DB.usuarios.find(function(u) {
+        return u.id === newChatState.selectedUserId;
+      });
+      if (!targetUser) return;
+      var convId = createConversation(targetUser);
+      closeNewChatModal();
+      renderConversationList(chatState.filteredConversations);
+      openConversation(convId);
+    });
+  }
+}
+
+// Registra os listeners na inicializacao (fora do DOMContentLoaded pois
+// o script ja e executado apos o DOM estar pronto)
+bindNewChatModalEvents();

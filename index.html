@@ -1677,6 +1677,56 @@
         </div>
     </div>
 
+    <!-- ================================================================ -->
+    <!-- MODAL: NOVA CONVERSA — Chat Interno                              -->
+    <!-- ================================================================ -->
+    <div class="trigger-error-overlay" id="new-chat-overlay" style="display:none;">
+      <div class="new-chat-modal glass-card">
+
+        <!-- Cabeçalho -->
+        <div class="new-chat-modal-header">
+          <h3><i class="fas fa-user-plus"></i> Nova Conversa</h3>
+          <button id="btn-close-new-chat" class="btn-icon" title="Fechar">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <!-- Campo de busca -->
+        <div class="new-chat-search-wrapper">
+          <i class="fas fa-search new-chat-search-icon"></i>
+          <input
+            type="text"
+            id="new-chat-search"
+            class="new-chat-search-input"
+            placeholder="Buscar por nome, cargo ou diretoria..."
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Lista de usuários -->
+        <div class="new-chat-user-list" id="new-chat-user-list">
+          <!-- Populada via JS -->
+        </div>
+
+        <!-- Estado vazio -->
+        <div class="new-chat-empty" id="new-chat-empty" style="display:none;">
+          <i class="fas fa-user-slash"></i>
+          <span>Nenhum usuário encontrado.</span>
+        </div>
+
+        <!-- Rodapé -->
+        <div class="new-chat-modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-new-chat">
+            Cancelar
+          </button>
+          <button class="btn btn-primary" id="btn-start-conversation" disabled>
+            <i class="fas fa-paper-plane"></i> Iniciar Conversa
+          </button>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Script da Aplicação -->
     <script src="app.js"></script>
 </body>
