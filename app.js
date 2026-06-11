@@ -112,6 +112,10 @@ chat_messages: [
     // Usuário logado — preenchido após autenticação
     let currentUser = null;
     window.currentUser = currentUser;
+        // Expõe funções do chat ao escopo global para acesso cross-scope
+        window._chatState = chatState;
+        window.openNewChatModal = openNewChatModal;
+        window.closeNewChatModal = closeNewChatModal;
 
     // Estado de seleção para marketing, esportes e financeiro (Fase 4)
     let selectedMarketingEventId = '';
@@ -4035,9 +4039,12 @@ function renderNewChatUserList(query) {
   if (!listEl) return;
 
   const q = (query || '').toLowerCase().trim();
-  const users = (DB.usuarios || []).filter(function(u) {
+  // Usa window.DB / window.currentUser para garantir acesso independente de escopo
+  var _DB = window.DB || DB;
+  var _currentUser = window.currentUser || currentUser;
+  const users = (_DB.usuarios || []).filter(function(u) {
     if (!u.status) return false;
-    if (currentUser && u.id === currentUser.id) return false;
+    if (_currentUser && u.id === _currentUser.id) return false;
     if (!q) return true;
     return (
       u.nome.toLowerCase().indexOf(q) !== -1 ||
@@ -4096,7 +4103,8 @@ function renderNewChatUserList(query) {
 // ── createConversation: isolado para substituição futura por Supabase ──
 function createConversation(targetUser) {
   // Verifica duplicata
-  const existing = chatState.conversations.find(function(c) {
+  var _cs = window._chatState || chatState;
+  const existing = _cs.conversations.find(function(c) {
     return c.participantId === targetUser.id;
   });
   if (existing) {
@@ -4118,8 +4126,8 @@ function createConversation(targetUser) {
     messages:      [],
   };
 
-  chatState.conversations.unshift(newConv);
-  chatState.filteredConversations = chatState.conversations.slice();
+  _cs.conversations.unshift(newConv);
+  _cs.filteredConversations = _cs.conversations.slice();
 
   logSQL(
     'INSERT INTO chat_conversations (id, participant_a, participant_b, created_at) VALUES (\'' +
@@ -4159,19 +4167,28 @@ function bindNewChatModalEvents() {
   if (btnStart) {
     btnStart.addEventListener('click', function() {
       if (!newChatState.selectedUserId) return;
-      var targetUser = DB.usuarios.find(function(u) {
+      var _DB2 = window.DB || DB;
+      var targetUser = _DB2.usuarios.find(function(u) {
         return u.id === newChatState.selectedUserId;
       });
       if (!targetUser) return;
       var convId = createConversation(targetUser);
       closeNewChatModal();
-      renderConversationList(chatState.filteredConversations);
+      var _cs2 = window._chatState || chatState;
+      renderConversationList(_cs2.filteredConversations);
       openConversation(convId);
     });
   }
 }
 
-    // Registra os listeners do modal Nova Conversa (dentro do DOMContentLoaded para acessar DB e currentUser)
+    // Expoe funcoes do chat ao escopo global (garante acesso independente de closure)
+    window._chatState = chatState;
+    window.openNewChatModal = openNewChatModal;
+    window.closeNewChatModal = closeNewChatModal;
+    window.renderConversationList = renderConversationList;
+    window.openConversation = openConversation;
+
+    // Registra os listeners do modal Nova Conversa
     bindNewChatModalEvents();
 
 }); // ← fechamento do DOMContentLoaded
