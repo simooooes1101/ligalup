@@ -3626,7 +3626,8 @@ navItems.forEach(item => {
             }
         });
     }
-});
+
+
 // ================================================================
 // MÓDULO: COMUNICAÇÃO — Chat Interno (Modo Mockup)
 // ================================================================
@@ -3815,9 +3816,52 @@ console.log('[CHAT] Displays após alteração:', {
       </div>
     </div>
     <div class="chat-header-actions">
-      <button class="btn-icon" title="Mais opções"><i class="fas fa-ellipsis-v"></i></button>
+      <button class="btn-icon btn-chat-options" id="btn-chat-options" title="Mais opções"><i class="fas fa-ellipsis-v"></i></button>
     </div>
   `;
+
+    // Listener do botão "..." — menu de opções da conversa
+  const optBtn = document.getElementById('btn-chat-options');
+  if (optBtn) {
+    optBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var existingMenu = document.getElementById('chat-options-menu');
+      if (existingMenu) { existingMenu.remove(); return; }
+      var menu = document.createElement('div');
+      menu.id = 'chat-options-menu';
+      menu.className = 'chat-options-menu';
+      menu.innerHTML =
+        '<button class="chat-option-item" data-action="clear"><i class="fas fa-trash-alt"></i> Limpar conversa</button>' +
+        '<button class="chat-option-item" data-action="mute"><i class="fas fa-bell-slash"></i> Silenciar notificações</button>';
+      var rect = optBtn.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top  = (rect.bottom + 6) + 'px';
+      menu.style.right = (window.innerWidth - rect.right) + 'px';
+      document.body.appendChild(menu);
+      menu.querySelector('[data-action="clear"]').addEventListener('click', function() {
+        var c = chatState.conversations.find(function(x) { return x.id === chatState.selectedConversationId; });
+        if (c) { c.messages = []; c.lastMessage = ''; }
+        menu.remove();
+        openConversation(chatState.selectedConversationId);
+        renderConversationList(chatState.filteredConversations);
+      });
+      menu.querySelector('[data-action="mute"]').addEventListener('click', function() {
+        menu.remove();
+        var toast = document.createElement('div');
+        toast.className = 'chat-toast';
+        toast.textContent = 'Notificações silenciadas (simulado).';
+        document.body.appendChild(toast);
+        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 2500);
+      });
+      setTimeout(function() {
+        document.addEventListener('click', function closeMenu() {
+          var m = document.getElementById('chat-options-menu');
+          if (m) m.remove();
+          document.removeEventListener('click', closeMenu);
+        });
+      }, 50);
+    });
+  }
 
   // Renderiza mensagens com optional chaining e fallback de array vazio
   const messages = conv?.messages ?? [];
@@ -4127,6 +4171,7 @@ function bindNewChatModalEvents() {
   }
 }
 
-// Registra os listeners na inicializacao (fora do DOMContentLoaded pois
-// o script ja e executado apos o DOM estar pronto)
-bindNewChatModalEvents();
+    // Registra os listeners do modal Nova Conversa (dentro do DOMContentLoaded para acessar DB e currentUser)
+    bindNewChatModalEvents();
+
+}); // ← fechamento do DOMContentLoaded
