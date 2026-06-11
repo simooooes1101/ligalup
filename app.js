@@ -3887,15 +3887,14 @@ const ChatModule = {
   }
 };
 // ── 7. BIND DE EVENTOS ───────────────────────────────────────────
-function bindChatEvents() {
-  // Delegação de evento na lista (evita rebind em cada render)
-  const listEl = document.getElementById('conversations-list');
-  if (listEl) {
-    listEl.addEventListener('click', (e) => {
-      const item = e.target.closest('.conversation-item');
-      if (item) {
-        openConversation(item.dataset.convId);
-      }
+function openConversation(conversationId) {
+
+  console.log('[CHAT] openConversation chamada:', conversationId);
+
+  const conv = chatState.conversations.find(c => c.id === conversationId);
+
+  ...
+}
     });
 
     // Acessibilidade: Enter/Space também abre
