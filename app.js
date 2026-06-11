@@ -3859,17 +3859,52 @@ function scrollToBottom() {
             .filter(msg => msg.id !== messageId);
     });
 
-    showToast?.('Mensagem removida.', 'success');
+    // Remove visualmente a bolha de mensagem do DOM
+    const msgEl = document.querySelector(`[data-msg-id="${messageId}"]`);
+    if (msgEl) msgEl.remove();
+
+    // Atualiza o preview ("última mensagem") na lista de conversas
+    await loadConversations();
+    renderConversationList();
+    if (state.activeConversationId) {
+      highlightActiveConversation(state.activeConversationId);
+    }
   }
 
   async function editMessage(messageId, newBody) {
     if (!newBody.trim()) return;
-    const { error } = await supabase
-      .from('chat_messages')
-      .update({ body: newBody.trim(), edited_at: new Date().toISOString() })
-      .eq('id', messageId)
-      .eq('sender_id', window.currentUser?.id);
-    if (error) showToast('Não foi possível editar a mensagem.', 'error');
+
+    // Modo mock: edita diretamente no in-memory DB
+    const msg = DB.chat_messages.find(m => m.id === messageId && m.sender_id === window.currentUser?.id);
+    if (!msg) return;
+
+    msg.body = newBody.trim();
+    msg.edited_at = new Date().toISOString();
+
+    // Sincroniza com o cache de mensagens do estado
+    Object.keys(state.messages).forEach(convId => {
+      const cached = (state.messages[convId] || []).find(m => m.id === messageId);
+      if (cached) {
+        cached.body = msg.body;
+        cached.edited_at = msg.edited_at;
+      }
+    });
+
+    updateMessageInView(msg);
+  }
+
+  // Chamado pelo botão "Salvar" no modo de edição inline (ver bindMessageActions)
+  function confirmEdit(messageId, btnEl) {
+    const msgEl = btnEl.closest('[data-msg-id]');
+    const textarea = msgEl?.querySelector('.chat-edit-input');
+    if (!textarea) return;
+    editMessage(messageId, textarea.value);
+  }
+
+  // Chamado pelo botão "Cancelar" no modo de edição inline para restaurar o texto original
+  function getOriginalBody(messageId) {
+    const msg = (state.messages[state.activeConversationId] || []).find(m => m.id === messageId);
+    return renderMentionText(escapeHtml(msg?.body || ''));
   }
 
   // ---------------------------------------------------------------------------
@@ -4037,6 +4072,53 @@ function scrollToBottom() {
     const picker = document.getElementById('mention-picker');
     if (picker) picker.style.display = 'none';
     state.mentionCandidates = [];
+  }
+    // ---------------------------------------------------------------------------
+  // MODAL GENÉRICO (Nova Conversa / Novo Grupo)
+  // ---------------------------------------------------------------------------
+
+  function showModal(title, bodyHtml, onConfirm) {
+    closeModal(); // remove qualquer modal existente antes de abrir outro
+
+    const overlay = document.createElement('div');
+    overlay.id = 'chat-modal-overlay';
+    overlay.className = 'chat-modal-overlay';
+
+    overlay.innerHTML = `
+      <div class="chat-modal">
+        <div class="chat-modal-header">
+          <h3>${escapeHtml(title)}</h3>
+          <button class="chat-modal-close" id="chat-modal-close-btn" title="Fechar">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="chat-modal-body">${bodyHtml}</div>
+        ${onConfirm ? `
+        <div class="chat-modal-footer">
+          <button class="btn btn-secondary" id="chat-modal-cancel-btn">Cancelar</button>
+          <button class="btn btn-accent" id="chat-modal-confirm-btn">Confirmar</button>
+        </div>` : ''}
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#chat-modal-close-btn')?.addEventListener('click', closeModal);
+    overlay.querySelector('#chat-modal-cancel-btn')?.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    if (onConfirm) {
+      overlay.querySelector('#chat-modal-confirm-btn')?.addEventListener('click', onConfirm);
+    }
+
+    requestAnimationFrame(() => overlay.classList.add('active'));
+  }
+
+  function closeModal() {
+    const overlay = document.getElementById('chat-modal-overlay');
+    if (overlay) overlay.remove();
   }
 
   // ---------------------------------------------------------------------------
@@ -4404,11 +4486,10 @@ function scrollToBottom() {
   }
 
   async function handleSendMessage() {
-    const inputEl = document.getElementById('chat-input');
+    const inputEl = document.getElementById('chat-input-field');
     const body = inputEl?.value?.trim();
-    const pendingFiles = getPendingAttachments();
-    if (!body && pendingFiles.length === 0) return;
-    await sendMessage(body || '', pendingFiles);
+    if (!body) return;
+    await sendMessage(body);
   }
 
   function openNewConversationModal() {
@@ -4476,7 +4557,9 @@ function scrollToBottom() {
   return {
     init,
     destroy,
-    renderContextualCommentPanel
+    renderContextualCommentPanel,
+    confirmEdit,
+    _getOriginalBody: getOriginalBody
   };
 
 })();
