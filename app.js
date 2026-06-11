@@ -3780,6 +3780,13 @@ function openConversation(conversationId) {
   const headerBarEl   = document.getElementById('chat-header-bar');
   const messagesBodyEl = document.getElementById('chat-messages-body');
 
+    console.log('[CHAT] Elementos encontrados:', {
+      noSelectionEl,
+      activeAreaEl,
+      headerBarEl,
+      messagesBodyEl
+});
+
   // Guarda defensiva: verifica se todos os elementos existem
   if (!noSelectionEl || !activeAreaEl || !headerBarEl || !messagesBodyEl) {
     console.error('[Chat] openConversation: elementos do DOM não encontrados. Verifique os IDs no HTML.');
