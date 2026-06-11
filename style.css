@@ -3857,11 +3857,23 @@ option:hover {
    MODAL: NOVA CONVERSA
    ================================================================ */
 
-/* Overlay reutiliza trigger-error-overlay — apenas garante flex */
-#new-chat-overlay {
-  display: flex;
+/* Wrapper do modal — oculto por padrão, visível com .active */
+.new-chat-overlay-wrapper {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9999;
   align-items: center;
   justify-content: center;
+}
+.new-chat-overlay-wrapper.active {
+  display: flex;
 }
 
 .new-chat-modal {

@@ -4019,13 +4019,13 @@ function openNewChatModal() {
   if (searchEl) searchEl.value = '';
   if (startBtn) startBtn.disabled = true;
   renderNewChatUserList('');
-  overlay.style.display = 'flex';
+  overlay.classList.add('active');
   setTimeout(function() { if (searchEl) searchEl.focus(); }, 80);
 }
 
 function closeNewChatModal() {
   const overlay = document.getElementById('new-chat-overlay');
-  if (overlay) overlay.style.display = 'none';
+  if (overlay) overlay.classList.remove('active');
   newChatState.selectedUserId = null;
 }
 
