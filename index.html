@@ -114,7 +114,7 @@
                     <li class="nav-item" data-target="mod-legal">
                         <i class="fas fa-file-contract"></i> Jurídico &amp; GED
                     </li>
-                    <!-- =============================================================================
+    <!-- =============================================================================
    INSTRUÇÕES DE INTEGRAÇÃO — index.html
    =============================================================================
 
@@ -126,91 +126,6 @@
   <i class="fas fa-comments"></i> Comunicação
   <span class="notification-badge" id="chat-unread-badge" style="display:none; position:absolute; top:6px; right:8px; background:var(--danger); color:#fff; border-radius:50%; width:18px; height:18px; font-size:10px; align-items:center; justify-content:center;"></span>
 </li>
-
-<!-- =============================================================================
-   2. ADICIONAR após a última </section> existente, antes do </main>:
-   ============================================================================= -->
-
-<!-- ============================================================ -->
-<!-- MÓDULO: COMUNICAÇÃO (Chat Interno)                           -->
-<!-- ============================================================ -->
-<section id="mod-comunicacao" class="module-section">
-  <div class="chat-layout">
-
-    <!-- ── SIDEBAR ESQUERDA: lista de conversas ── -->
-    <div class="chat-sidebar">
-      <div class="chat-sidebar-header">
-        <h4><i class="fas fa-comments"></i> Mensagens</h4>
-        <button class="btn-icon" id="btn-new-chat" title="Nova conversa">
-          <i class="fas fa-edit"></i>
-        </button>
-      </div>
-
-      <div class="chat-search-wrapper">
-        <i class="fas fa-search chat-search-icon"></i>
-        <input
-          type="text"
-          id="chat-search-input"
-          class="chat-search-input"
-          placeholder="Buscar conversa..."
-        >
-      </div>
-
-      <!-- Estado: carregando -->
-      <div id="chat-loading-state" class="chat-state-msg">
-        <i class="fas fa-circle-notch fa-spin"></i> Carregando conversas...
-      </div>
-
-      <!-- Estado: sem resultados de busca -->
-      <div id="chat-empty-state" class="chat-state-msg" style="display:none;">
-        <i class="fas fa-search"></i> Nenhuma conversa encontrada.
-      </div>
-
-      <!-- Lista de conversas (populada pelo JS) -->
-      <ul id="conversations-list" class="conversations-list" style="display:none;"></ul>
-    </div>
-
-    <!-- ── PAINEL DIREITO: janela de chat ── -->
-    <div class="chat-main" id="chat-main">
-
-      <!-- Placeholder: nenhuma conversa selecionada -->
-      <div id="chat-no-selection" class="chat-no-selection">
-        <i class="fas fa-comments" style="font-size:48px; opacity:0.2; margin-bottom:16px;"></i>
-        <p>Selecione uma conversa ou inicie uma nova.</p>
-      </div>
-
-      <!-- Área de chat ativa (oculta por padrão) -->
-      <div id="chat-active-area" class="chat-active-area" style="display:none;">
-
-        <!-- Header da conversa ativa -->
-        <div class="chat-header-bar" id="chat-header-bar">
-          <!-- Populado pelo JS -->
-        </div>
-
-        <!-- Corpo: mensagens -->
-        <div class="chat-messages-body" id="chat-messages-body">
-          <!-- Populado pelo JS -->
-        </div>
-
-        <!-- Rodapé: input de envio -->
-        <div class="chat-input-bar">
-          <input
-            type="text"
-            id="chat-input-field"
-            class="chat-input-field"
-            placeholder="Digite uma mensagem..."
-            autocomplete="off"
-          >
-          <button class="chat-send-btn" id="btn-send-message">
-            <i class="fas fa-paper-plane"></i>
-          </button>
-        </div>
-
-      </div>
-    </div>
-
-  </div>
-</section>
 
 <!-- =============================================================================
    3. COMENTÁRIOS CONTEXTUAIS — adicionar dentro de cada módulo existente
