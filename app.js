@@ -1126,8 +1126,10 @@ navItems.forEach(item => {
         // Inicializar chat ao entrar no módulo
         if (targetSection === 'mod-comunicacao' && currentUser) {
             ChatModule.init();
-            document.getElementById('chat-no-conv').style.display  = 'flex';
-            document.getElementById('chat-active-conv').style.display = 'none';
+            const _noConv = document.getElementById('chat-no-selection');
+            const _actConv = document.getElementById('chat-active-area');
+            if (_noConv)  _noConv.style.display  = 'flex';
+            if (_actConv) _actConv.style.display = 'none';
         }
 
         // Destruir subscriptions Realtime ao sair do módulo
