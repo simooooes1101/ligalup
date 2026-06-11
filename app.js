@@ -3797,6 +3797,11 @@ function openConversation(conversationId) {
   noSelectionEl.style.display = 'none';
   activeAreaEl.style.display  = 'flex';
 
+console.log('[CHAT] Displays após alteração:', {
+  noSelection: noSelectionEl.style.display,
+  activeArea: activeAreaEl.style.display
+});
+
   // Renderiza o header da conversa
   const initials = (conv.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   headerBarEl.innerHTML = `
