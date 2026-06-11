@@ -3756,6 +3756,7 @@ function renderConversationList(conversations) {
 
 // ── 5. ABRIR CONVERSA (o ponto crítico que causava tela preta) ───
 function openConversation(conversationId) {
+    console.log('[CHAT] openConversation chamada:', conversationId);
   // Busca com segurança
   const conv = chatState.conversations.find(c => c.id === conversationId);
 
@@ -3887,14 +3888,15 @@ const ChatModule = {
   }
 };
 // ── 7. BIND DE EVENTOS ───────────────────────────────────────────
-function openConversation(conversationId) {
-
-  console.log('[CHAT] openConversation chamada:', conversationId);
-
-  const conv = chatState.conversations.find(c => c.id === conversationId);
-
-  ...
-}
+function bindChatEvents() {
+  // Delegação de evento na lista (evita rebind em cada render)
+  const listEl = document.getElementById('conversations-list');
+  if (listEl) {
+    listEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.conversation-item');
+      if (item) {
+        openConversation(item.dataset.convId);
+      }
     });
 
     // Acessibilidade: Enter/Space também abre
