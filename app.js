@@ -330,6 +330,7 @@ chat_messages: [
             // Realiza a alteração do evento (Commit Parcial)
             event.status_aprovacao = newStatus;
             logSQL(`Event status committed: '${oldStatus}' -> '${newStatus}'`, 'success');
+            supabase.from('eventos').update({status_aprovacao: newStatus}).eq('id', eventId).then(({error}) => { if(error) console.error(error); });
 
             // --- TRIGGER NOTIFICAÇÃO: Solicitação de Verba (SOLICITACAO_VERBA) ---
             if (newStatus === 'Aguardando Tesouraria') {
@@ -664,6 +665,21 @@ chat_messages: [
                 rbacSelect.appendChild(newOpt);
             }
 
+                        // Sincroniza com Supabase no background
+            if (id) {
+                supabase.from('usuarios').upsert({
+                    id: data.id, nome: data.nome, email: data.email, cargo: data.cargo, diretoria: data.diretoria, status: data.status, avatar: data.avatar
+                }).then(({error}) => { if(error) console.error('Erro DB usuários:', error); });
+            } else {
+                // Criação por master - tenta usar o Auth no background, sem deslogar
+                const tempSupabase = window.supabase.createClient('https://ruytftiztkrkvniqqmjj.supabase.co', 'sb_publishable_70qktfjIX0DcfY2O-YM3Fw_fZbjUkEc', { auth: { persistSession: false, autoRefreshToken: false } });
+                tempSupabase.auth.signUp({ email: data.email, password: data.password }).then((res) => {
+                    const uid = res.data?.user?.id || newId; // Usa o ID gerado pelo Auth se sucesso
+                    supabase.from('usuarios').upsert({
+                        id: uid, nome: data.nome, email: data.email, cargo: data.cargo, diretoria: data.diretoria, status: true
+                    }).then(({error:e2}) => { if(e2) console.error('Erro DB usuários:', e2); });
+                });
+            }
             refreshAllUI();
             return true;
         },
