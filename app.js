@@ -4,6 +4,14 @@
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ========================================================================
+    // SUPABASE CONFIGURATION (AGUARDANDO CREDENCIAIS)
+    // ========================================================================
+    const SUPABASE_URL = 'https://ruytftiztkrkvniqqmjj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_70qktfjIX0DcfY2O-YM3Fw_fZbjUkEc';
+    
+    // Inicializa o cliente do Supabase
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     // ------------------------------------------------------------------------
     // 1. ESTADO DO BANCO DE DADOS (IN-MEMORY DB)
     // ------------------------------------------------------------------------
@@ -963,6 +971,29 @@ chat_messages: [
         });
     }
 
+    // --- Sincroniza dados do Supabase para Memória Local ---
+    window.syncDBFromSupabase = async function() {
+        console.log('Iniciando sincronização com o Supabase...');
+        const tables = [
+            'usuarios', 'eventos', 'tarefas_logistica', 'modalidades', 'atletas',
+            'produtos', 'produto_variantes', 'calendario_editorial', 'cronograma_postagens',
+            'escalacoes', 'participantes_evento', 'lancamentos_financeiros',
+            'parceiros_patrocinadores', 'documentos_contratos', 'logs_notificacoes',
+            'fornecedores', 'pedidos_compra', 'chat_conversations', 'chat_messages'
+        ];
+
+        for (const table of tables) {
+            const { data, error } = await supabase.from(table).select('*');
+            if (error) {
+                console.error(`Erro ao carregar ${table}:`, error);
+            } else if (data) {
+                // Preserva o mock em tabelas que vierem vazias, apenas por segurança do MVP inicial
+                if(data.length > 0) DB[table] = data; 
+            }
+        }
+        console.log('Sincronização concluída!');
+    };
+
     // --- Abre o painel após autenticação ---
     function openApp(user) {
         currentUser = user;
@@ -1026,35 +1057,32 @@ chat_messages: [
         btnLoad.style.display = '';
         btn.disabled = true;
 
-        let user = null;
+        try {
+            // 1. Supabase Auth
+            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                email, password
+            });
 
-        if (backendOnline) {
-            try {
-                const resp = await fetch(`${API_BASE}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                const data = await resp.json();
-                if (resp.ok && data.status === 'success') {
-                    localStorage.setItem('lup_token', data.token);
-                    localStorage.setItem('lup_user', JSON.stringify(data.user));
-                    user = data.user;
-                } else {
-                    throw new Error(data.error || 'Credenciais inválidas.');
-                }
-            } catch (err) {
-                // Tenta fallback local se o backend retornar erro de rede
-                user = localAuth(email, password);
-                if (!user) {
-                    errEl.textContent = err.message || 'E-mail ou senha inválidos.';
-                    errEl.style.display = 'block';
-                }
-            }
-        } else {
-            user = localAuth(email, password);
-            if (!user) {
-                errEl.textContent = 'E-mail ou senha inválidos. Verifique suas credenciais.';
+            if (authError) throw authError;
+
+            // 2. Sincroniza o Banco de Dados Inteiro
+            await window.syncDBFromSupabase();
+
+            // 3. Valida se o usuário existe na tabela pública
+            const user = DB.usuarios.find(u => u.email === email);
+            if (!user) throw new Error('Seu usuário foi criado no cofre, mas ainda não tem ficha na tabela de usuários. Peça ao Master para criar sua ficha.');
+
+            openApp(user);
+
+        } catch (err) {
+            console.error('Erro no Supabase:', err);
+            // Fallback provisório (Mock) caso o Supabase ainda não tenha usuários
+            let localUser = localAuth(email, password);
+            if (localUser) {
+                console.warn('Fallback: Logado pelo cache local mockado.');
+                openApp(localUser);
+            } else {
+                errEl.textContent = err.message || 'E-mail ou senha inválidos no Supabase.';
                 errEl.style.display = 'block';
             }
         }
