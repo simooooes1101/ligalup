@@ -568,7 +568,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 logSQL(`INSERT INTO usuarios (nome, email, cargo, diretoria, status) VALUES ('${nome}', '${email}', '${cargo}', '${diretoria}', true);`, 'query');
                 logSQL(`Novo membro '${nome}' cadastrado com sucesso (ID: ${newId}).`, 'success');
 
-                // Atualiza o seletor RBAC com novo usuário
+  
+                alert(`Usuário ${nome} criado com sucesso!\n\nEle já aparece na tabela abaixo.\n\nO acesso ao sistema será liberado em instantes via sincronização com o Supabase.`);
+              // Atualiza o seletor RBAC com novo usuário
                 const rbacSelect = document.getElementById('user-rbac-select');
                 const newOpt = document.createElement('option');
                 newOpt.value = newId;
@@ -583,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).then(({error}) => { if(error) console.error('Erro DB usuários:', error); });
             } else {
                 // Criação por master - tenta usar o Auth no background, sem deslogar
-                const tempSupabase = window.supabase.createClient('https://ruytftiztkrkvniqqmjj.supabase.co', 'sb_publishable_70qktfjIX0DcfY2O-YM3Fw_fZbjUkEc', { auth: { persistSession: false, autoRefreshToken: false } });
+                const tempSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
                 tempSupabase.auth.signUp({ email: data.email, password: data.password }).then((res) => {
                     const uid = res.data?.user?.id || newId; // Usa o ID gerado pelo Auth se sucesso
                     supabase.from('usuarios').upsert({
@@ -789,6 +791,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
     };
+
+    async function updateConnectionStatus() {
+        const badge = document.getElementById('login-db-status');
+        if (!badge) return;
+        const connBadge = document.getElementById('connection-status-badge');
+
+        let online = false;
+        if (typeof window.supabase !== 'undefined') {
+            online = true;
+        }
+
+        if (online) {
+            badge.className = 'login-status-badge online';
+            badge.innerHTML = '<i class="fas fa-circle"></i> Supabase Conectado';
+            if (connBadge) {
+                connBadge.className = 'badge';
+                connBadge.style.cssText = 'padding:8px 12px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
+                connBadge.innerHTML = '<i class="fas fa-database"></i> Banco Supabase Ativo';
+            }
+        } else {
+            badge.className = 'login-status-badge offline';
+            badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Banco Local (Simulado)';
+            if (connBadge) {
+                connBadge.className = 'badge badge-secondary';
+                connBadge.style.cssText = 'padding:8px 12px;';
+                connBadge.innerHTML = '<i class="fas fa-flask"></i> Ambiente Simulado';
+            }
+        }
+    }
 
     // ------------------------------------------------------------------------
     // 3. AUTENTICAÇÃO REAL DE PRODUÇÃO (Login / JWT / Simulador)
