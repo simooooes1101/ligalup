@@ -569,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 logSQL(`Novo membro '${nome}' cadastrado com sucesso (ID: ${newId}).`, 'success');
 
   
-                alert(`Usuário ${nome} criado com sucesso!\n\nEle já aparece na tabela abaixo.\n\nO acesso ao sistema será liberado em instantes via sincronização com o Supabase.`);
+                alert(`Usuário ${nome} criado com sucesso!\n\nEle já aparece na tabela abaixo.\n\nAguarde 1 minuto para realizar o login com este novo acesso.`);
               // Atualiza o seletor RBAC com novo usuário
                 const rbacSelect = document.getElementById('user-rbac-select');
                 const newOpt = document.createElement('option');
@@ -803,20 +803,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (online) {
-            badge.className = 'login-status-badge online';
-            badge.innerHTML = '<i class="fas fa-circle"></i> Supabase Conectado';
+            badge.style.display = 'none';
             if (connBadge) {
                 connBadge.className = 'badge';
-                connBadge.style.cssText = 'padding:8px 12px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
-                connBadge.innerHTML = '<i class="fas fa-database"></i> Banco Supabase Ativo';
+                connBadge.style.cssText = 'padding:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center;';
+                connBadge.innerHTML = '<i class="fas fa-database"></i>';
+                connBadge.title = 'Banco de Dados Conectado';
             }
         } else {
+            badge.style.display = '';
             badge.className = 'login-status-badge offline';
             badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Banco Local (Simulado)';
             if (connBadge) {
                 connBadge.className = 'badge badge-secondary';
                 connBadge.style.cssText = 'padding:8px 12px;';
                 connBadge.innerHTML = '<i class="fas fa-flask"></i> Ambiente Simulado';
+                connBadge.title = '';
             }
         }
     }
@@ -837,16 +839,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (online) {
             if (badge) {
-                badge.className = 'login-status-badge online';
-                badge.innerHTML = '<i class="fas fa-circle"></i> Supabase Conectado';
+                badge.style.display = 'none';
             }
             if (connBadge) {
                 connBadge.className = 'badge';
-                connBadge.style.cssText = 'padding:8px 12px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
-                connBadge.innerHTML = '<i class="fas fa-database"></i> Banco Supabase Ativo';
+                connBadge.style.cssText = 'padding:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center;';
+                connBadge.innerHTML = '<i class="fas fa-database"></i>';
+                connBadge.title = 'Banco de Dados Conectado';
             }
         } else {
             if (badge) {
+                badge.style.display = '';
                 badge.className = 'login-status-badge offline';
                 badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Banco Local (Simulado)';
             }
@@ -854,6 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 connBadge.className = 'badge badge-secondary';
                 connBadge.style.cssText = 'padding:8px 12px;';
                 connBadge.innerHTML = '<i class="fas fa-flask"></i> Ambiente Simulado';
+                connBadge.title = '';
             }
         }
     }
@@ -1593,7 +1597,7 @@ navItems.forEach(item => {
         document.getElementById('user-status-text').innerText = 'Conta Ativa';
         document.getElementById('user-password-group').style.opacity = '1';
         document.getElementById('btn-cancel-user-edit').style.display = 'none';
-        document.getElementById('btn-save-user').innerHTML = '<i class="fas fa-save"></i> Salvar Membro (Gravar no Supabase)';
+        document.getElementById('btn-save-user').innerHTML = '<i class="fas fa-save"></i> Salvar Membro';
         document.querySelectorAll('#users-table tbody tr').forEach(r => r.style.background = '');
     }
 
