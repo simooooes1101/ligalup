@@ -16,103 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. ESTADO DO BANCO DE DADOS (IN-MEMORY DB)
     // ------------------------------------------------------------------------
     const DB = {
-        usuarios: [
-            { id: 'u1', nome: 'Presidente Fulano', email: 'presidencia@atleticalup.com.br', cargo: 'Master', diretoria: 'Presidência', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u2', nome: 'Financeiro Fulano', email: 'financeiro@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Tesouraria', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u3', nome: 'Marketing Fulano', email: 'marketing@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Marketing', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u4', nome: 'Espostes Fulano', email: 'esportes@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Esportes', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u5', nome: 'Juridico Fulano', email: 'juridico@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Jurídico', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u6', nome: 'Suporte Fulano', email: 'suporte@atleticalup.com.br', cargo: 'Apoio', diretoria: 'Nenhuma', status: true, senha: 'lup123_strategy', avatar: null },
-            { id: 'u7', nome: 'Parcerias Fulano', email: 'parcerias@atleticalup.com.br', cargo: 'Diretor', diretoria: 'Parcerias', status: true, senha: 'lup123_strategy', avatar: null }
+        usuarios: [], eventos: [], tarefas_logistica: [], modalidades: [],
+        atletas: [], produtos: [], produto_variantes: [], calendario_editorial: [],
+        cronograma_postagens: [], escalacoes: [], participantes_evento: [],
+        lancamentos_financeiros: [], parceiros_patrocinadores: [], documentos_contratos: [],
+        logs_notificacoes: [], fornecedores: [], pedidos_compra: [], chat_conversations: [
+            { id: 'conv-1', name: 'Geral LUP', type: 'Grupo', created_at: new Date().toISOString() }
         ],
-        eventos: [
-            { id: 'e1', nome: 'Cervejada de Integração LUP', data_evento: '2026-06-12 18:00', local: 'Arena LUP', orcamento_previsto: 12000.00, status_aprovacao: 'Aprovado', tipo: 'Social', valor_taxa_base: 80.00, criador_id: 'u3' },
-            { id: 'e2', nome: 'InterMed São Paulo', data_evento: '2026-09-05 08:00', local: 'Olímpia - SP', orcamento_previsto: 25000.00, status_aprovacao: 'Aguardando Tesouraria', tipo: 'Competição', valor_taxa_base: 0.00, criador_id: 'u4' },
-            { id: 'e3', nome: 'Treino Geral de Cheerleaders', data_evento: '2026-06-02 19:30', local: 'Ginásio B', orcamento_previsto: 350.00, status_aprovacao: 'Rascunho', tipo: 'Institucional', valor_taxa_base: 0.00, criador_id: 'u1' }
-        ],
-        tarefas_logistica: [
-            { id: 't1', evento_id: 'e1', descricao: 'Aluguel do som e iluminação', data_prazo: '2026-06-10', responsavel_id: 'u6', status: 'Concluído' },
-            { id: 't2', evento_id: 'e1', descricao: 'Compra de bebidas (lotes iniciais)', data_prazo: '2026-06-11', responsavel_id: 'u2', status: 'Em Andamento' },
-            { id: 't3', evento_id: 'e2', descricao: 'Aluguel do ônibus da delegação', data_prazo: '2026-08-30', responsavel_id: 'u4', status: 'Pendente' }
-        ],
-        modalidades: [
-            { id: 'm1', nome: 'Futsal Masculino', coordenador_id: 'u4' },
-            { id: 'm2', nome: 'Handebol Feminino', coordenador_id: 'u4' },
-            { id: 'm3', nome: 'Cheerleading Misto', coordenador_id: 'u1' }
-        ],
-        atletas: [
-            { id: 'a1', nome: 'Mateus Silva Ramos', ra_matricula: '22.01948-2', modalidade_id: 'm1', status_documentacao: 'Aprovado' },
-            { id: 'a2', nome: 'Gabriela Mendes Costa', ra_matricula: '23.00341-9', modalidade_id: 'm2', status_documentacao: 'Pendente' },
-            { id: 'a3', nome: 'Rodrigo Nogueira Souza', ra_matricula: '21.01185-5', modalidade_id: 'm1', status_documentacao: 'Rejeitado' }
-        ],
-        produtos: [
-            { id: 'p1', nome: 'Moletom Oficial Lupus', preco_custo: 85.00, preco_venda: 160.00 },
-            { id: 'p2', nome: 'Caneca Tirante LUP', preco_custo: 12.00, preco_venda: 25.00 }
-        ],
-        produto_variantes: [
-            { id: 'pv1', produto_id: 'p1', tamanho: 'P', estoque_atual: 15 },
-            { id: 'pv2', produto_id: 'p1', tamanho: 'M', estoque_atual: 24 },
-            { id: 'pv3', produto_id: 'p1', tamanho: 'G', estoque_atual: 0 }, // Esgotado
-            { id: 'pv4', produto_id: 'p1', tamanho: 'GG', estoque_atual: 5 },
-            { id: 'pv5', produto_id: 'p2', tamanho: 'Único', estoque_atual: 150 }
-        ],
-        calendario_editorial: [
-            { id: 'ce1', evento_id: 'e1', plataforma: 'Instagram', data_publicacao: '2026-06-01 12:00', descricao: 'Post oficial de venda de ingressos do primeiro lote', responsavel_id: 'u3' }
-        ],
-        cronograma_postagens: [
-            { id: 'cp1', evento_id: 'e1', plataforma: 'Instagram', tipo_conteudo: 'Feed', data_publicacao: '2026-06-01 12:00', descricao: 'Post oficial de venda de ingressos do primeiro lote', status: 'Agendado' }
-        ],
-        escalacoes: [],
-        participantes_evento: [
-            { id: 'pe1', evento_id: 'e1', nome: 'Mateus Silva Ramos', ra_matricula: '22.01948-2', valor_cobrado: 80.00, status_pagamento: 'Pago', forma_pagamento: 'Pix', data_pagamento: '2026-05-20', obs: 'Valor integral' },
-            { id: 'pe2', evento_id: 'e1', nome: 'Gabriela Mendes Costa', ra_matricula: '23.00341-9', valor_cobrado: 60.00, status_pagamento: 'Pendente', forma_pagamento: 'Pix', data_pagamento: null, obs: 'Desconto atleta' }
-        ],
-        lancamentos_financeiros: [
-            { id: 'lf1', tipo: 'Entrada', categoria: 'Patrocínio Master', valor: 8000.00, data_competencia: '2026-05-10', status_conciliacao: true, evento_id: null, produto_id: null },
-            { id: 'lf2', tipo: 'Entrada', categoria: 'Venda Moletom', valor: 3840.00, data_competencia: '2026-05-15', status_conciliacao: true, evento_id: null, produto_id: 'p1' },
-            { id: 'lf3', tipo: 'Saída', categoria: 'Logística Evento', valor: 12000.00, data_competencia: '2026-05-20', status_conciliacao: false, evento_id: 'e1', produto_id: null }
-        ],
-        parceiros_patrocinadores: [
-            { id: 'par1', nome_empresa: 'RedBull Brasil', tipo_parceria: 'Fornecimento de Energéticos', status_funil: 'Negociação', link_proposta_drive: 'https://drive.google.com/redbull-prop' },
-            { id: 'par2', nome_empresa: 'Cervejaria Local', tipo_parceria: 'Patrocínio Financeiro LUP Fest', status_funil: 'Contrato Ativo', link_proposta_drive: 'https://drive.google.com/cerveja-prop' },
-            { id: 'par3', nome_empresa: 'Marca de Roupas Esportivas', tipo_parceria: 'Uniformes das Delegações', status_funil: 'Aguardando Contrato', link_proposta_drive: 'https://drive.google.com/roupas-prop' }
-        ],
-        documentos_contratos: [
-            { id: 'dc1', titulo: 'Termo de Parceria RedBull 2026', tipo_documento: 'Termo de Parceria', arquivo_url: '', data_vencimento: '2026-12-31', parceiro_id: 'par1' },
-            { id: 'dc2', titulo: 'Contrato Assinado Cervejaria 2026', tipo_documento: 'Contrato', arquivo_url: 'https://drive.google.com/file/d/atletica-lup-contrato-cerveja-193/view', data_vencimento: '2026-11-30', parceiro_id: 'par2' },
-            { id: 'dc3', titulo: 'Contrato Vestuário Adidas 2026', tipo_documento: 'Contrato', arquivo_url: 'https://drive.google.com/file/d/atletica-lup-adidas/view', data_vencimento: '2026-07-05', parceiro_id: 'par3' }
-        ],
-        logs_notificacoes: [
-            { id: 'log1', usuario_id: 'u3', tipo_notificacao: 'Email', gatilho_regra: 'SOLICITACAO_VERBA', destinatario_email: 'financeiro@atleticalup.com.br', status_entrega: 'ENVIADO', data_envio: '2026-05-20 10:14', erro_detalhe: null, lida: false },
-            { id: 'log2', usuario_id: 'u4', tipo_notificacao: 'Email', gatilho_regra: 'ATLETA_BARRADO', destinatario_email: 'esportes@atleticalup.com.br', status_entrega: 'FALHA', data_envio: '2026-05-22 15:30', erro_detalhe: 'Try/catch exception: Resend API Connection Timeout. Mailbox unavailable.', lida: false }
-        ],
-        fornecedores: [
-            { id: 'f1', nome: 'Confecções Estrela Ltda.', contato: 'Roberto Santos', telefone: '(11) 98765-4321', email: 'comercial@estrela.com', tipo_produto: 'Camisetas, Moletons', categoria_servico: 'Vestuário', obs: 'Prazo de entrega: 15 dias úteis' },
-            { id: 'f2', nome: 'BrindesJá Promoções', contato: 'Fernanda Lima', telefone: '(21) 91234-5678', email: 'vendas@brindesja.com', tipo_produto: 'Canecas, Chaveiros', categoria_servico: 'Brindes', obs: 'Pedido mínimo: 50 unidades' }
-        ],
-        pedidos_compra: [
-            { id: 'pc1', fornecedor_id: 'f1', produto_id: 'p1', tamanho: 'M', quantidade: 30, data_previsao: '2026-06-15', status: 'Pendente' },
-            { id: 'pc2', fornecedor_id: 'f2', produto_id: 'p2', tamanho: 'Único', quantidade: 50, data_previsao: '2026-06-10', status: 'Recebido' }
-        ],
-        chat_conversations: [
-  {
-    id: 'conv1',
-    name: 'Conversa Geral',
-    type: 'direct',
-      participants: ['u1', 'u2']
-  }
-],
-
-chat_messages: [
-  {
-    id: 'msg1',
-    conversation_id: 'conv1',
-    sender_id: 'u1',
-    body: 'Bem-vindo ao chat da plataforma.',
-    sent_at: new Date().toISOString()
-  }
-],
-        chat_attachments: [],
+        chat_participants: [], chat_messages: [], chat_attachments: []
     };
 
     window.DB = DB;
@@ -3678,60 +3589,36 @@ navItems.forEach(item => {
 
 // ── 1. DADOS MOCKUP ─────────────────────────────────────────────
 // Estrutura OBRIGATÓRIA: todo objeto deve ter o campo `messages`
-const MOCK_CONVERSATIONS = [
-  {
-    id: 'conv-1',
-    name: 'Eduardo Carolo',
-    role: 'Presidência',
-    avatar: null,
-    lastMessage: 'Reunião confirmada para sexta às 19h.',
-    timestamp: '10:45',
-    unread: 2,
-    messages: [
-      { id: 'm1', senderId: 'them', senderName: 'Eduardo', text: 'Oi, tudo bem?', time: '10:30' },
-      { id: 'm2', senderId: 'me',   senderName: 'Eu',      text: 'Tudo sim! E você?', time: '10:32' },
-      { id: 'm3', senderId: 'them', senderName: 'Eduardo', text: 'Ótimo! Reunião confirmada para sexta às 19h.', time: '10:45' },
-    ]
-  },
-  {
-    id: 'conv-2',
-    name: 'Diretoria de Marketing',
-    role: 'Marketing',
-    avatar: null,
-    lastMessage: 'Arte do evento está pronta.',
-    timestamp: 'Ontem',
-    unread: 0,
-    messages: [
-      { id: 'm1', senderId: 'them', senderName: 'Marketing', text: 'Arte do evento está pronta.', time: 'Ontem 14:20' },
-      { id: 'm2', senderId: 'me',   senderName: 'Eu',        text: 'Manda aqui para aprovar.', time: 'Ontem 14:22' },
-    ]
-  },
-  {
-    id: 'conv-3',
-    name: 'Tesouraria',
-    role: 'Financeiro',
-    avatar: null,
-    lastMessage: 'Saldo do caixa atualizado.',
-    timestamp: 'Seg',
-    unread: 1,
-    messages: [
-      { id: 'm1', senderId: 'them', senderName: 'Tesouraria', text: 'Saldo do caixa atualizado.', time: 'Seg 09:00' },
-    ]
-  },
-  {
-    id: 'conv-4',
-    name: 'Jurídico & GED',
-    role: 'Jurídico',
-    avatar: null,
-    lastMessage: 'Contrato enviado para assinatura.',
-    timestamp: 'Dom',
-    unread: 0,
-    messages: [
-      { id: 'm1', senderId: 'me',   senderName: 'Eu',       text: 'Preciso do contrato do evento.', time: 'Dom 11:00' },
-      { id: 'm2', senderId: 'them', senderName: 'Jurídico', text: 'Contrato enviado para assinatura.', time: 'Dom 11:15' },
-    ]
-  },
-];
+
+function buildChatFromDB() {
+    if (!DB.chat_conversations) return [];
+    return DB.chat_conversations.map(conv => {
+        const msgs = (DB.chat_messages || []).filter(m => m.conversation_id === conv.id)
+            .sort((a,b) => new Date(a.sent_at) - new Date(b.sent_at))
+            .map(m => {
+                const isMe = window.currentUser && m.sender_id === window.currentUser.id;
+                const senderUser = DB.usuarios.find(u => u.id === m.sender_id);
+                return {
+                    id: m.id,
+                    senderId: isMe ? 'me' : m.sender_id,
+                    senderName: isMe ? 'Eu' : (senderUser ? senderUser.nome : 'Usuário'),
+                    text: m.body,
+                    time: new Date(m.sent_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                };
+            });
+        const lastMsg = msgs[msgs.length - 1];
+        return {
+            id: conv.id,
+            name: conv.name,
+            role: conv.type,
+            avatar: null,
+            lastMessage: lastMsg ? lastMsg.text : 'Sem mensagens',
+            timestamp: lastMsg ? lastMsg.time : '',
+            unread: 0,
+            messages: msgs
+        };
+    });
+}
 
 // ── 2. ESTADO INTERNO ────────────────────────────────────────────
 let chatState = {
@@ -3742,8 +3629,28 @@ let chatState = {
 
 // ── 3. INICIALIZAÇÃO ─────────────────────────────────────────────
 function initChatModule() {
-  chatState.conversations = MOCK_CONVERSATIONS;
-  chatState.filteredConversations = [...MOCK_CONVERSATIONS];
+  chatState.conversations = buildChatFromDB();
+  chatState.filteredConversations = [...chatState.conversations];
+  
+  if (!window.chatSubscribed) {
+      window.chatSubscribed = true;
+      supabase.channel('public:chat_messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
+            const newMsg = payload.new;
+            if (DB.chat_messages.find(m => m.id === newMsg.id)) return;
+            
+            DB.chat_messages.push(newMsg);
+            chatState.conversations = buildChatFromDB();
+            chatState.filteredConversations = [...chatState.conversations];
+            
+            if (chatState.selectedConversationId) {
+               openConversation(chatState.selectedConversationId);
+            } else {
+               renderConversationList(chatState.filteredConversations);
+            }
+        })
+        .subscribe();
+  }
 
   renderConversationList(chatState.filteredConversations);
   bindChatEvents();
@@ -3935,27 +3842,25 @@ function sendMockMessage() {
   const inputEl = document.getElementById('chat-input-field');
   const text    = inputEl?.value?.trim();
 
-  if (!text || !chatState.selectedConversationId) return;
-
-  const conv = chatState.conversations.find(c => c.id === chatState.selectedConversationId);
-  if (!conv) return;
-
-  // Garante que o array existe
-  if (!Array.isArray(conv.messages)) conv.messages = [];
+  if (!text || !chatState.selectedConversationId || !window.currentUser) return;
 
   const newMsg = {
-    id: `m${Date.now()}`,
-    senderId: 'me',
-    senderName: 'Eu',
-    text,
-    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    id: 'm_' + Date.now(),
+    conversation_id: chatState.selectedConversationId,
+    sender_id: window.currentUser.id,
+    body: text,
+    sent_at: new Date().toISOString()
   };
 
-  conv.messages.push(newMsg);
-  conv.lastMessage = text;
-  conv.timestamp   = newMsg.time;
+  DB.chat_messages.push(newMsg);
+  
+  supabase.from('chat_messages').insert(newMsg).then(({error}) => {
+      if(error) console.error('Erro ao enviar mensagem:', error);
+  });
 
-  // Limpa o input e re-renderiza
+  chatState.conversations = buildChatFromDB();
+  chatState.filteredConversations = [...chatState.conversations];
+
   inputEl.value = '';
   openConversation(chatState.selectedConversationId);
 }
