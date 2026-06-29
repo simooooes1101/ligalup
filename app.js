@@ -829,24 +829,27 @@ document.addEventListener('DOMContentLoaded', () => {
     async function checkBackend() {
         const badge = document.getElementById('login-status-badge');
         const connBadge = document.getElementById('connection-status-badge');
-        try {
-            const resp = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(2500) });
-            backendOnline = resp.ok;
-        } catch {
-            backendOnline = false;
+        
+        let online = false;
+        if (typeof window.supabase !== 'undefined') {
+            online = true;
         }
 
-        if (backendOnline) {
-            badge.className = 'login-status-badge online';
-            badge.innerHTML = '<i class="fas fa-circle"></i> Supabase Conectado';
+        if (online) {
+            if (badge) {
+                badge.className = 'login-status-badge online';
+                badge.innerHTML = '<i class="fas fa-circle"></i> Supabase Conectado';
+            }
             if (connBadge) {
                 connBadge.className = 'badge';
                 connBadge.style.cssText = 'padding:8px 12px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
                 connBadge.innerHTML = '<i class="fas fa-database"></i> Banco Supabase Ativo';
             }
         } else {
-            badge.className = 'login-status-badge offline';
-            badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Banco Local (Simulado)';
+            if (badge) {
+                badge.className = 'login-status-badge offline';
+                badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Banco Local (Simulado)';
+            }
             if (connBadge) {
                 connBadge.className = 'badge badge-secondary';
                 connBadge.style.cssText = 'padding:8px 12px;';
