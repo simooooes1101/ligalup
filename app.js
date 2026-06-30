@@ -968,11 +968,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) {
                 console.error(`Erro ao carregar ${table}:`, error);
             } else if (data) {
-                // Preserva o mock em tabelas que vierem vazias, apenas por segurança do MVP inicial
                 if(data.length > 0) DB[table] = data; 
             }
         }
-        console.log('Sincronização concluída!');
+
+        // Garante que a conversa padrão "Geral LUP" existe (seed automático)
+        if (!DB.chat_conversations.find(c => c.id === 'conv-1')) {
+            const seedConv = { id: 'conv-1', name: 'Geral LUP', type: 'Grupo' };
+            DB.chat_conversations.push(seedConv);
+            supabase.from('chat_conversations').upsert(seedConv)
+                .then(({ error }) => { if (error) console.warn('Seed chat_conversations:', error); });
+        }
+
+        console.log('Sincronização concluída! chat_conversations:', DB.chat_conversations.length);
     };
 
     // --- Abre o painel após autenticação ---
@@ -1050,7 +1058,16 @@ document.addEventListener('DOMContentLoaded', () => {
             await window.syncDBFromSupabase();
 
             // 3. Valida se o usuário existe na tabela pública
-            const user = DB.usuarios.find(u => u.email === email);
+            // Usa o UUID real do Auth como id do currentUser para garantir que sender_id do chat é correto
+            const authUID = authData.user.id;
+            let user = DB.usuarios.find(u => u.id === authUID);
+            if (!user) {
+                // Fallback: busca por email e atualiza o ID para o UUID real
+                user = DB.usuarios.find(u => u.email === email);
+                if (user) {
+                    user.id = authUID; // Corrige o ID local para o UUID real
+                }
+            }
             if (!user) throw new Error('Seu usuário foi criado no cofre, mas ainda não tem ficha na tabela de usuários. Peça ao Master para criar sua ficha.');
 
             openApp(user);
@@ -3891,12 +3908,20 @@ console.log('[CHAT] Displays após alteração:', {
   messagesBodyEl.scrollTop = messagesBodyEl.scrollHeight;
 }
 
-// ── 6. ENVIAR MENSAGEM (mockup local) ────────────────────────────
+// ── 6. ENVIAR MENSAGEM ────────────────────────────────────────────
 function sendMockMessage() {
   const inputEl = document.getElementById('chat-input-field');
   const text    = inputEl?.value?.trim();
 
-  if (!text || !chatState.selectedConversationId || !window.currentUser) return;
+  if (!text) return;
+  if (!chatState.selectedConversationId) {
+      console.warn('[Chat] Nenhuma conversa selecionada.');
+      return;
+  }
+  if (!window.currentUser) {
+      console.warn('[Chat] currentUser não definido.');
+      return;
+  }
 
   const newMsg = {
     id: 'm_' + Date.now(),
@@ -3906,17 +3931,23 @@ function sendMockMessage() {
     sent_at: new Date().toISOString()
   };
 
+  // 1. Adiciona localmente de imediato → feedback instantâneo na tela
   DB.chat_messages.push(newMsg);
-  
-  supabase.from('chat_messages').insert(newMsg).then(({error}) => {
-      if(error) console.error('Erro ao enviar mensagem:', error);
-  });
+  inputEl.value = '';
 
+  // 2. Re-renderiza a conversa imediatamente (sem esperar o Supabase)
   chatState.conversations = buildChatFromDB();
   chatState.filteredConversations = [...chatState.conversations];
-
-  inputEl.value = '';
   openConversation(chatState.selectedConversationId);
+
+  // 3. Persiste no Supabase em background
+  supabase.from('chat_messages').insert(newMsg).then(({ error }) => {
+      if (error) {
+          console.error('[Chat] Erro ao persistir mensagem:', error);
+      } else {
+          console.log('[Chat] Mensagem salva no Supabase.');
+      }
+  });
 }
 // ================================================================
 // EXPORTAÇÃO DO MÓDULO DE CHAT
