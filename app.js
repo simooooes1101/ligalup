@@ -960,7 +960,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'produtos', 'produto_variantes', 'calendario_editorial', 'cronograma_postagens',
             'escalacoes', 'participantes_evento', 'lancamentos_financeiros',
             'parceiros_patrocinadores', 'documentos_contratos', 'logs_notificacoes',
-            'fornecedores', 'pedidos_compra', 'chat_conversations', 'chat_messages'
+            'fornecedores', 'pedidos_compra', 'chat_conversations', 'chat_participants', 'chat_messages'
         ];
 
         for (const table of tables) {
@@ -3662,10 +3662,23 @@ navItems.forEach(item => {
 // Estrutura OBRIGATÓRIA: todo objeto deve ter o campo `messages`
 
 function buildChatFromDB() {
-    if (!DB.chat_conversations) return [];
-    return DB.chat_conversations.map(conv => {
+    if (!DB.chat_conversations || !window.currentUser) return [];
+
+    // Conversas privadas são filtradas por chat_participants.
+    // Conversas de grupo (type === 'Grupo') são visíveis a todos.
+    const myConvIds = new Set(
+        (DB.chat_participants || [])
+            .filter(p => p.user_id === window.currentUser.id)
+            .map(p => p.conversation_id)
+    );
+
+    const visibleConvs = DB.chat_conversations.filter(conv =>
+        conv.type === 'Grupo' || myConvIds.has(conv.id)
+    );
+
+    return visibleConvs.map(conv => {
         const msgs = (DB.chat_messages || []).filter(m => m.conversation_id === conv.id)
-            .sort((a,b) => new Date(a.sent_at) - new Date(b.sent_at))
+            .sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at))
             .map(m => {
                 const isMe = window.currentUser && m.sender_id === window.currentUser.id;
                 const senderUser = DB.usuarios.find(u => u.id === m.sender_id);
@@ -3702,26 +3715,70 @@ let chatState = {
 function initChatModule() {
   chatState.conversations = buildChatFromDB();
   chatState.filteredConversations = [...chatState.conversations];
-  
-  if (!window.chatSubscribed) {
-      window.chatSubscribed = true;
-      supabase.channel('public:chat_messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
-            const newMsg = payload.new;
-            if (DB.chat_messages.find(m => m.id === newMsg.id)) return;
-            
-            DB.chat_messages.push(newMsg);
+
+  // Gerenciamento correto do ciclo de vida do canal:
+  // Remove canal existente antes de criar novo (evita subscriptions duplicadas)
+  if (window._chatChannel) {
+      supabase.removeChannel(window._chatChannel);
+      window._chatChannel = null;
+      console.log('[Chat Realtime] Canal anterior removido.');
+  }
+
+  window._chatChannel = supabase.channel('chat-realtime')
+
+    // ── Novas mensagens ──
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
+        const newMsg = payload.new;
+        if (DB.chat_messages.find(m => m.id === newMsg.id)) return; // Deduplication
+        DB.chat_messages.push(newMsg);
+        chatState.conversations = buildChatFromDB();
+        chatState.filteredConversations = [...chatState.conversations];
+        if (chatState.selectedConversationId) {
+            openConversation(chatState.selectedConversationId);
+        } else {
+            renderConversationList(chatState.filteredConversations);
+        }
+    })
+
+    // ── Novas conversas (criadas por outro usuário) ──
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_conversations' }, payload => {
+        const newConv = payload.new;
+        if (!DB.chat_conversations.find(c => c.id === newConv.id)) {
+            DB.chat_conversations.push(newConv);
+        }
+        chatState.conversations = buildChatFromDB();
+        chatState.filteredConversations = [...chatState.conversations];
+        renderConversationList(chatState.filteredConversations);
+    })
+
+    // ── Novo participante adicionado (alerta o destinatário de conversa privada) ──
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants' }, payload => {
+        const newPart = payload.new;
+        const exists = DB.chat_participants.find(
+            p => p.conversation_id === newPart.conversation_id && p.user_id === newPart.user_id
+        );
+        if (!exists) {
+            (DB.chat_participants = DB.chat_participants || []).push(newPart);
+        }
+
+        // Se o participante inserido é o usuário atual, uma nova conversa apareceu para ele
+        if (window.currentUser && newPart.user_id === window.currentUser.id) {
             chatState.conversations = buildChatFromDB();
             chatState.filteredConversations = [...chatState.conversations];
-            
-            if (chatState.selectedConversationId) {
-               openConversation(chatState.selectedConversationId);
-            } else {
-               renderConversationList(chatState.filteredConversations);
-            }
-        })
-        .subscribe();
-  }
+            renderConversationList(chatState.filteredConversations);
+        }
+    })
+
+    // ── Callback de status: coleta evidências do estado da conexão ──
+    .subscribe((status, err) => {
+        console.log('[Chat Realtime] Status:', status, err ? err : '');
+        if (status === 'SUBSCRIBED') {
+            console.log('[Chat Realtime] Canal ativo. Realtime funcionando.');
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn('[Chat Realtime] Canal em estado problemático:', status, err);
+        }
+    });
 
   renderConversationList(chatState.filteredConversations);
   bindChatEvents();
@@ -3959,6 +4016,12 @@ const ChatModule = {
   },
 
   destroy() {
+    // Remove o canal do Supabase corretamente (evita vazamento de memória e subscriptions órfãs)
+    if (window._chatChannel) {
+        supabase.removeChannel(window._chatChannel);
+        window._chatChannel = null;
+        console.log('[Chat Realtime] Canal removido ao sair do módulo.');
+    }
     chatState.selectedConversationId = null;
   },
 
@@ -4130,40 +4193,59 @@ function renderNewChatUserList(query) {
   });
 }
 
-// ── createConversation: isolado para substituição futura por Supabase ──
-function createConversation(targetUser) {
-  // Verifica duplicata
-  var _cs = window._chatState || chatState;
-  const existing = _cs.conversations.find(function(c) {
-    return c.participantId === targetUser.id;
+// ── createConversation: cria conversa privada e persiste no Supabase ──
+async function createConversation(targetUser) {
+  if (!window.currentUser) return null;
+
+  // Verifica duplicata pela tabela chat_participants:
+  // Uma conversa privada já existe se ambos os usuários são participantes de uma mesma conversa do tipo 'Privado'
+  const myConvIds = new Set(
+      (DB.chat_participants || [])
+          .filter(p => p.user_id === window.currentUser.id)
+          .map(p => p.conversation_id)
+  );
+  const theirConvIds = new Set(
+      (DB.chat_participants || [])
+          .filter(p => p.user_id === targetUser.id)
+          .map(p => p.conversation_id)
+  );
+  const existingId = [...myConvIds].find(id => {
+      const conv = DB.chat_conversations.find(c => c.id === id);
+      return conv && conv.type === 'Privado' && theirConvIds.has(id);
   });
-  if (existing) {
-    logSQL('SELECT id FROM chat_conversations WHERE participant_b = \'' + targetUser.id + '\'; -- reutiliza conversa existente', 'success');
-    return existing.id;
+  if (existingId) {
+      console.log('[Chat] Reutilizando conversa privada existente:', existingId);
+      return existingId;
   }
 
-  // Cria nova conversa mock
-  const newId = 'conv-' + Date.now();
-  const newConv = {
-    id:            newId,
-    participantId: targetUser.id,
-    name:          targetUser.nome,
-    role:          targetUser.diretoria !== 'Nenhuma' ? targetUser.diretoria : targetUser.cargo,
-    avatar:        targetUser.avatar || null,
-    lastMessage:   '',
-    timestamp:     'Agora',
-    unread:        0,
-    messages:      [],
+  // UUID gerado pelo cliente (criptograficamente único, sem dependência de timestamp)
+  const newId = crypto.randomUUID();
+  const newConvRecord = {
+      id: newId,
+      name: `${window.currentUser.nome} & ${targetUser.nome}`,
+      type: 'Privado',
+      created_at: new Date().toISOString()
   };
+  const participants = [
+      { conversation_id: newId, user_id: window.currentUser.id },
+      { conversation_id: newId, user_id: targetUser.id }
+  ];
 
-  _cs.conversations.unshift(newConv);
-  _cs.filteredConversations = _cs.conversations.slice();
+  // 1. Persiste conversa no Supabase
+  const { error: convError } = await supabase.from('chat_conversations').insert(newConvRecord);
+  if (convError) console.error('[Chat] Erro ao criar chat_conversations:', convError);
 
-  logSQL(
-    'INSERT INTO chat_conversations (id, participant_a, participant_b, created_at) VALUES (\'' +
-    newId + '\', \'' + (currentUser ? currentUser.id : 'null') + '\', \'' + targetUser.id + '\', NOW()); -- Mock',
-    'trigger'
-  );
+  // 2. Persiste participantes no Supabase (isso dispara o Realtime para o destinatário)
+  const { error: partError } = await supabase.from('chat_participants').insert(participants);
+  if (partError) console.error('[Chat] Erro ao inserir chat_participants:', partError);
+
+  // 3. Adiciona ao banco local
+  DB.chat_conversations.push(newConvRecord);
+  (DB.chat_participants = DB.chat_participants || []).push(...participants);
+
+  // 4. Reconstrói estado
+  chatState.conversations = buildChatFromDB();
+  chatState.filteredConversations = [...chatState.conversations];
 
   return newId;
 }
@@ -4197,16 +4279,18 @@ function bindNewChatModalEvents() {
   if (btnStart) {
     btnStart.addEventListener('click', function() {
       if (!newChatState.selectedUserId) return;
-      var _DB2 = window.DB || DB;
-      var targetUser = _DB2.usuarios.find(function(u) {
-        return u.id === newChatState.selectedUserId;
-      });
+      var targetUser = (window.DB || DB).usuarios.find(u => u.id === newChatState.selectedUserId);
       if (!targetUser) return;
-      var convId = createConversation(targetUser);
-      closeNewChatModal();
-      var _cs2 = window._chatState || chatState;
-      renderConversationList(_cs2.filteredConversations);
-      openConversation(convId);
+
+      // createConversation é agora assíncrona (persiste no Supabase)
+      createConversation(targetUser).then(function(convId) {
+          if (!convId) return;
+          closeNewChatModal();
+          renderConversationList(chatState.filteredConversations);
+          openConversation(convId);
+      }).catch(function(err) {
+          console.error('[Chat] Erro ao criar conversa:', err);
+      });
     });
   }
 }
