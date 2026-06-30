@@ -48,10 +48,10 @@ module.exports = defineConfig({
   // Servidor web embutido: o Playwright sobe um servidor local automaticamente
   // antes de executar os testes. Aponta para a raiz do projeto (index.html).
   webServer: {
-    // Usamos npx serve para servir arquivos estáticos sem dependência adicional
-    command: 'npx serve . --listen 5500 --no-clipboard',
+    // Usa o binário local do serve (instalado como devDependency) — sem download na hora
+    command: 'node node_modules/serve/build/main.js . --listen 5500 --no-clipboard',
     url: 'http://localhost:5500',
     reuseExistingServer: !process.env.CI,
-    timeout: 15_000,
+    timeout: 30_000,
   },
 });
