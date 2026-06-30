@@ -963,25 +963,36 @@ document.addEventListener('DOMContentLoaded', () => {
             'fornecedores', 'pedidos_compra', 'chat_conversations', 'chat_participants', 'chat_messages'
         ];
 
-        for (const table of tables) {
-            const { data, error } = await supabase.from(table).select('*');
-            if (error) {
-                console.error(`Erro ao carregar ${table}:`, error);
-            } else if (data) {
-                if(data.length > 0) DB[table] = data; 
+        try {
+            for (const table of tables) {
+                const { data, error } = await supabase.from(table).select('*');
+
+                // Early Return dentro do loop: loga o erro e avança para a próxima tabela
+                if (error) {
+                    console.error(`[Sync] Erro ao carregar tabela "${table}":`, error);
+                    continue;
+                }
+
+                if (data?.length > 0) DB[table] = data;
             }
-        }
 
-        // Garante que a conversa padrão "Geral LUP" existe (seed automático)
-        if (!DB.chat_conversations.find(c => c.id === 'conv-1')) {
-            const seedConv = { id: 'conv-1', name: 'Geral LUP', type: 'Grupo' };
-            DB.chat_conversations.push(seedConv);
-            supabase.from('chat_conversations').upsert(seedConv)
-                .then(({ error }) => { if (error) console.warn('Seed chat_conversations:', error); });
-        }
+            // Garante que a conversa padrão "Geral LUP" existe (seed automático)
+            if (!DB.chat_conversations.find(c => c.id === 'conv-1')) {
+                const seedConv = { id: 'conv-1', name: 'Geral LUP', type: 'Grupo' };
+                DB.chat_conversations.push(seedConv);
 
-        console.log('Sincronização concluída! chat_conversations:', DB.chat_conversations.length);
+                // Fire-and-forget intencional: o seed não deve bloquear o restante do fluxo.
+                // Erros são capturados via .catch() explícito (equivalente ao .then() anterior).
+                supabase.from('chat_conversations').upsert(seedConv)
+                    .catch(err => console.warn('[Sync] Erro ao fazer seed do Geral LUP:', err));
+            }
+
+            console.log('Sincronização concluída! chat_conversations:', DB.chat_conversations.length);
+        } catch (err) {
+            console.error('[Sync] Erro inesperado durante a sincronização:', err);
+        }
     };
+
 
     // --- Abre o painel após autenticação ---
     function openApp(user) {
