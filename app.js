@@ -4011,19 +4011,20 @@ async function sendMessage() {
   if (sendBtn) sendBtn.disabled = true;
 
   // 2. Persistência Exclusiva (Arquitetura Distribuída)
-  // Removemos o "Mock" local. A tela só atualizará quando o servidor confirmar 
-  // o insert e devolver o evento via Realtime WebSockets.
+  console.log('[Chat Event] Preparando payload para envio:', JSON.stringify(newMsg, null, 2));
   console.log('[Chat Event] Aguardando confirmação transacional do Supabase...');
-  const { error } = await supabase.from('chat_messages').insert(newMsg);
+  
+  const { data, error } = await supabase.from('chat_messages').insert(newMsg).select();
   
   if (sendBtn) sendBtn.disabled = false;
 
   if (error) {
-      console.error('[Chat Event] ❌ Falha crítica ao persistir mensagem:', error);
+      console.error('[Chat Event] ❌ Falha crítica ao persistir mensagem. Erro completo:', error);
       alert('Erro ao enviar mensagem. Tente novamente.');
       inputEl.value = text; // Rollback UI
   } else {
-      console.log('[Chat Event] ✅ Mensagem salva! Aguardando o eco do Realtime para renderizar na tela.');
+      console.log('[Chat Event] ✅ Mensagem salva! Resposta do Supabase:', data);
+      console.log('[Chat Event] Aguardando o eco do Realtime para renderizar na tela.');
   }
 }
 // ================================================================
