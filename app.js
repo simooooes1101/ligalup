@@ -4315,7 +4315,7 @@ function bindNewChatModalEvents() {
 
   var btnStart = document.getElementById('btn-start-conversation');
   if (btnStart) {
-    btnStart.addEventListener('click', function() {
+    btnStart.addEventListener('click', async function() {
       if (!newChatState.selectedUserId) return;
       var targetUser = (window.DB || DB).usuarios.find(u => u.id === newChatState.selectedUserId);
       if (!targetUser) return;
@@ -4325,20 +4325,21 @@ function bindNewChatModalEvents() {
       const originalText = btnStart.innerText;
       btnStart.innerText = 'Iniciando...';
 
-      // createConversation é assíncrona (persiste no Supabase e bloqueia duplicatas)
-      createConversation(targetUser).then(function(convId) {
-          btnStart.disabled = false;
-          btnStart.innerText = originalText;
-          if (!convId) return;
-          
-          closeNewChatModal();
-          renderConversationList(chatState.filteredConversations);
-          openConversation(convId);
-      }).catch(function(err) {
-          btnStart.disabled = false;
-          btnStart.innerText = originalText;
-          console.error('[Chat] Erro ao criar conversa:', err);
-      });
+      try {
+        // createConversation é assíncrona (persiste no Supabase e bloqueia duplicatas)
+        const convId = await createConversation(targetUser);
+        if (!convId) return;
+
+        closeNewChatModal();
+        renderConversationList(chatState.filteredConversations);
+        openConversation(convId);
+      } catch (err) {
+        console.error('[Chat] Erro ao criar conversa:', err);
+      } finally {
+        // Restaura o botão independentemente de sucesso ou falha
+        btnStart.disabled = false;
+        btnStart.innerText = originalText;
+      }
     });
   }
 }
