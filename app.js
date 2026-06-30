@@ -3743,15 +3743,13 @@ function initChatModule() {
         
         console.log('[Chat Realtime] Nova mensagem recebida:', newMsg.id);
         DB.chat_messages.push(newMsg);
-        
-        // Re-processa e atualiza a UI inteiramente orientada pelo banco
         chatState.conversations = buildChatFromDB();
         chatState.filteredConversations = [...chatState.conversations];
-        
+
         if (chatState.selectedConversationId) {
-            openConversation(chatState.selectedConversationId); // Atualiza mensagens abertas
+            openConversation(chatState.selectedConversationId);
         } else {
-            renderConversationList(chatState.filteredConversations); // Atualiza sidebar
+            renderConversationList(chatState.filteredConversations);
         }
     })
 
@@ -4031,25 +4029,20 @@ async function sendMessage() {
     sent_at: new Date().toISOString()
   };
 
-  // 1. UI State: Limpa o input e bloqueia envio adicional (evitar duplo clique)
+  // Limpa o input e bloqueia envio adicional para prevenir double-click
   inputEl.value = '';
   if (sendBtn) sendBtn.disabled = true;
 
-  // 2. Persistência Exclusiva (Arquitetura Distribuída)
-  console.log('[Chat Event] Preparando payload para envio:', JSON.stringify(newMsg, null, 2));
-  console.log('[Chat Event] Aguardando confirmação transacional do Supabase...');
-  
   const { data, error } = await supabase.from('chat_messages').insert(newMsg).select();
-  
+
   if (sendBtn) sendBtn.disabled = false;
 
   if (error) {
-      console.error('[Chat Event] ❌ Falha crítica ao persistir mensagem. Erro completo:', error);
+      console.error('[Chat Event] ❌ Falha ao persistir mensagem:', error);
       alert('Erro ao enviar mensagem. Tente novamente.');
-      inputEl.value = text; // Rollback UI
+      inputEl.value = text; // Rollback: devolve o texto ao input
   } else {
-      console.log('[Chat Event] ✅ Mensagem salva! Resposta do Supabase:', data);
-      console.log('[Chat Event] Aguardando o eco do Realtime para renderizar na tela.');
+      console.log('[Chat Event] ✅ Mensagem salva. Aguardando eco do Realtime:', data?.[0]?.id);
   }
 }
 // ================================================================
