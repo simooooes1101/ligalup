@@ -4306,13 +4306,23 @@ function bindNewChatModalEvents() {
       var targetUser = (window.DB || DB).usuarios.find(u => u.id === newChatState.selectedUserId);
       if (!targetUser) return;
 
-      // createConversation é agora assíncrona (persiste no Supabase)
+      // Desabilita botão para evitar double-click race conditions
+      btnStart.disabled = true;
+      const originalText = btnStart.innerText;
+      btnStart.innerText = 'Iniciando...';
+
+      // createConversation é assíncrona (persiste no Supabase e bloqueia duplicatas)
       createConversation(targetUser).then(function(convId) {
+          btnStart.disabled = false;
+          btnStart.innerText = originalText;
           if (!convId) return;
+          
           closeNewChatModal();
           renderConversationList(chatState.filteredConversations);
           openConversation(convId);
       }).catch(function(err) {
+          btnStart.disabled = false;
+          btnStart.innerText = originalText;
           console.error('[Chat] Erro ao criar conversa:', err);
       });
     });
