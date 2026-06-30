@@ -3962,20 +3962,34 @@ console.log('[CHAT] Displays após alteração:', {
   // Renderiza mensagens com optional chaining e fallback de array vazio
   const messages = conv?.messages ?? [];
 
+  // Limpa o container antes de construir novo conteúdo
+  messagesBodyEl.innerHTML = '';
+
   if (messages.length === 0) {
-    messagesBodyEl.innerHTML = `
-      <div class="chat-empty-messages">
-        <i class="fas fa-comment-dots"></i>
-        <p>Nenhuma mensagem ainda. Inicie a conversa!</p>
-      </div>
-    `;
+    // Estado vazio: usa HTML estático sem dados do usuário — seguro sem textContent
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'chat-empty-messages';
+    emptyDiv.innerHTML = '<i class="fas fa-comment-dots"></i><p>Nenhuma mensagem ainda. Inicie a conversa!</p>';
+    messagesBodyEl.appendChild(emptyDiv);
   } else {
-    messagesBodyEl.innerHTML = messages.map(msg => `
-      <div class="chat-msg ${msg.senderId === 'me' ? 'msg-sent' : 'msg-received'}">
-        <div class="msg-bubble">${msg.text ?? ''}</div>
-        <span class="msg-time">${msg.time ?? ''}</span>
-      </div>
-    `).join('');
+    // Iteração segura: texto do usuário (msg.text e msg.time) injetado exclusivamente via
+    // .textContent, impedindo que HTML ou scripts embutidos sejam interpretados pelo browser.
+    messages.forEach(msg => {
+      const wrapper = document.createElement('div');
+      wrapper.className = `chat-msg ${msg.senderId === 'me' ? 'msg-sent' : 'msg-received'}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = msg.text ?? ''; // SAFE: não interpreta HTML
+
+      const time = document.createElement('span');
+      time.className = 'msg-time';
+      time.textContent = msg.time ?? ''; // SAFE: não interpreta HTML
+
+      wrapper.appendChild(bubble);
+      wrapper.appendChild(time);
+      messagesBodyEl.appendChild(wrapper);
+    });
   }
 
   // Scroll automático para a última mensagem
