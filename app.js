@@ -532,28 +532,33 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         },
 
-        // Simula INSERT de Usuário / UPDATE de Usuário (sem exclusão)
+        // INSERT de Usuário / UPDATE de Usuário
         saveUsuario: function(data) {
             const { id, nome, email, password, cargo, diretoria, status } = data;
 
             if (id) {
-                // Edição de usuário existente
+                // ── EDITAR usuário existente ──────────────────────────────
                 const user = DB.usuarios.find(u => u.id === id);
                 if (!user) { alert('Usuário não encontrado!'); return false; }
 
-                logSQL(`UPDATE usuarios SET nome='${nome}', email='${email}', cargo='${cargo}', diretoria='${diretoria}', status=${status} WHERE id='${id}';`, 'query');
-                user.nome = nome;
-                user.email = email;
-                user.cargo = cargo;
-                user.diretoria = diretoria;
-                user.status = status;
-                if (password) {
-                    user.senha = password;
-                    user.password_hash = `[HASH de '${password}']`;
-                }
-                logSQL(`Usuário '${nome}' atualizado com sucesso (ID: ${id}). Status: ${status ? 'Ativo' : 'Inativo'}.`, 'success');
+                logSQL(`UPDATE usuarios SET nome='${nome}', cargo='${cargo}', diretoria='${diretoria}', status=${status} WHERE id='${id}';`, 'query');
+                user.nome = nome; user.email = email;
+                user.cargo = cargo; user.diretoria = diretoria; user.status = status;
+                if (password) { user.senha = password; }
+                logSQL(`Usuário '${nome}' atualizado com sucesso (ID: ${id}).`, 'success');
+
+                // Sincroniza edição com Supabase
+                supabase.from('usuarios').update({
+                    nome, email, cargo, diretoria, status
+                }).eq('id', id).then(({ error }) => {
+                    if (error) console.error('Erro ao atualizar usuário no Supabase:', error);
+                });
+
+                refreshAllUI();
+                return true;
+
             } else {
-                // Criação de novo usuário
+                // ── CRIAR novo usuário ────────────────────────────────────
                 const emailExists = DB.usuarios.find(u => u.email === email);
                 if (emailExists) {
                     showDBErrorDialog('23505 (Unique Violation)', 'usuarios.email', `O e-mail '${email}' já está em uso por outro membro da diretoria.`);
@@ -563,38 +568,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('É obrigatório definir uma senha para novos usuários!');
                     return false;
                 }
-                const newId = 'u_' + Date.now();
-                DB.usuarios.push({ id: newId, nome, email, cargo, diretoria, status: true, senha: password, password_hash: `[HASH de '${password}']`, avatar: null });
-                logSQL(`INSERT INTO usuarios (nome, email, cargo, diretoria, status) VALUES ('${nome}', '${email}', '${cargo}', '${diretoria}', true);`, 'query');
-                logSQL(`Novo membro '${nome}' cadastrado com sucesso (ID: ${newId}).`, 'success');
 
-  
-                alert(`Usuário ${nome} criado com sucesso!\n\nEle já aparece na tabela abaixo.\n\nAguarde 1 minuto para realizar o login com este novo acesso.`);
-              // Atualiza o seletor RBAC com novo usuário
+                // 1. Insere no banco local imediatamente (com ID temporário)
+                const tempId = 'u_' + Date.now();
+                const localRecord = { id: tempId, nome, email, cargo, diretoria, status: true, senha: password, avatar: null };
+                DB.usuarios.push(localRecord);
+                logSQL(`INSERT INTO usuarios (nome, email, cargo, diretoria) VALUES ('${nome}', '${email}', '${cargo}', '${diretoria}');`, 'query');
+
+                // Atualiza a UI imediatamente
+                refreshAllUI();
                 const rbacSelect = document.getElementById('user-rbac-select');
-                const newOpt = document.createElement('option');
-                newOpt.value = newId;
-                newOpt.innerText = `${nome} (${cargo} / ${diretoria})`;
-                rbacSelect.appendChild(newOpt);
-            }
+                if (rbacSelect) {
+                    const opt = document.createElement('option');
+                    opt.value = tempId;
+                    opt.innerText = `${nome} (${cargo} / ${diretoria})`;
+                    rbacSelect.appendChild(opt);
+                }
 
-                        // Sincroniza com Supabase no background
-            if (id) {
-                supabase.from('usuarios').upsert({
-                    id: data.id, nome: data.nome, email: data.email, cargo: data.cargo, diretoria: data.diretoria, status: data.status, avatar: data.avatar
-                }).then(({error}) => { if(error) console.error('Erro DB usuários:', error); });
-            } else {
-                // Criação por master - tenta usar o Auth no background, sem deslogar
-                const tempSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-                tempSupabase.auth.signUp({ email: data.email, password: data.password }).then((res) => {
-                    const uid = res.data?.user?.id || newId; // Usa o ID gerado pelo Auth se sucesso
-                    supabase.from('usuarios').upsert({
-                        id: uid, nome: data.nome, email: data.email, cargo: data.cargo, diretoria: data.diretoria, status: true
-                    }).then(({error:e2}) => { if(e2) console.error('Erro DB usuários:', e2); });
+                // 2. Cria no Supabase Auth (background) → depois grava na tabela
+                const tempSB = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                    auth: { persistSession: false, autoRefreshToken: false }
                 });
+                tempSB.auth.signUp({ email, password }).then(({ data: authData, error: authError }) => {
+                    if (authError) {
+                        console.error('Erro no Supabase Auth.signUp:', authError);
+                        return;
+                    }
+                    const realUID = authData?.user?.id || tempId;
+                    // Atualiza ID local para o UUID real
+                    const localUser = DB.usuarios.find(u => u.email === email);
+                    if (localUser) localUser.id = realUID;
+
+                    // Grava na tabela usuarios com o UUID real
+                    supabase.from('usuarios').upsert({
+                        id: realUID, nome, email, cargo, diretoria, status: true
+                    }).then(({ error: dbError }) => {
+                        if (dbError) console.error('Erro ao gravar usuário na tabela:', dbError);
+                        else logSQL(`Usuário '${nome}' sincronizado no Supabase (UUID: ${realUID}).`, 'success');
+                    });
+                });
+
+                alert(`✅ Usuário ${nome} criado com sucesso!\n\nEle já aparece na tabela abaixo.\n\nAguarde 1 minuto para realizar o login com este novo acesso.`);
+                return true;
             }
-            refreshAllUI();
-            return true;
         },
 
         // --- MÉTODOS DE MARKETING (Fase 4) ---
