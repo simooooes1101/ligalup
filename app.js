@@ -4046,7 +4046,7 @@ const ChatModule = {
   openConversation,
 
   sendMessage() {
-    sendMessage(); // Removido o mock, agora chama a função estritamente distribuída
+    sendMessage();
   },
 
   async renderContextualCommentPanel(entityType, entityId, container) {
@@ -4086,17 +4086,24 @@ function bindChatEvents() {
 
   // Botão enviar
   const sendBtn = document.getElementById('btn-send-message');
-  if (sendBtn) sendBtn.addEventListener('click', sendMockMessage);
+  if (sendBtn) {
+      // Remove listener anterior clonando o node para evitar acúmulo de binds no SPA
+      const newSendBtn = sendBtn.cloneNode(true);
+      sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+      newSendBtn.addEventListener('click', sendMessage);
+  }
 
   // Enter no input
   const inputField = document.getElementById('chat-input-field');
   if (inputField) {
-    inputField.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMockMessage();
-      }
-    });
+      const newInputField = inputField.cloneNode(true);
+      inputField.parentNode.replaceChild(newInputField, inputField);
+      newInputField.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+          }
+      });
   }
 
   // Busca de conversas
