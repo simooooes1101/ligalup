@@ -1,0 +1,58 @@
+{
+  "_comment": "Este arquivo é o ponto central de dados mockados para os testes E2E.",
+  "_comment2": "Cada chave representa uma tabela do Supabase. Os dados aqui são retornados pelo Playwright via page.route() nas chamadas GET, sem tocar no banco de produção.",
+
+  "usuarios": [
+    {
+      "id": "test-user-presidencia-001",
+      "nome": "Ed Carlos Teste",
+      "email": "presidencia@atleticalup.com.br",
+      "cargo": "Presidente",
+      "diretoria": "Presidência",
+      "status": true,
+      "avatar": null
+    },
+    {
+      "id": "test-user-juridico-002",
+      "nome": "Jurídico Teste",
+      "email": "juridico@atleticalup.com.br",
+      "cargo": "Diretor",
+      "diretoria": "Jurídico & GED",
+      "status": true,
+      "avatar": null
+    }
+  ],
+
+  "chat_conversations": [
+    {
+      "id": "conv-1",
+      "name": "Geral LUP",
+      "type": "Grupo",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+
+  "chat_participants": [
+    { "conversation_id": "conv-1", "user_id": "test-user-presidencia-001" },
+    { "conversation_id": "conv-1", "user_id": "test-user-juridico-002" }
+  ],
+
+  "chat_messages": [],
+
+  "eventos": [],
+  "tarefas_logistica": [],
+  "modalidades": [],
+  "atletas": [],
+  "produtos": [],
+  "produto_variantes": [],
+  "calendario_editorial": [],
+  "cronograma_postagens": [],
+  "escalacoes": [],
+  "participantes_evento": [],
+  "lancamentos_financeiros": [],
+  "parceiros_patrocinadores": [],
+  "documentos_contratos": [],
+  "logs_notificacoes": [],
+  "fornecedores": [],
+  "pedidos_compra": []
+}
