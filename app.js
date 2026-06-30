@@ -3716,12 +3716,11 @@ function initChatModule() {
   chatState.conversations = buildChatFromDB();
   chatState.filteredConversations = [...chatState.conversations];
 
-  // Gerenciamento correto do ciclo de vida do canal:
-  // Remove canal existente antes de criar novo (evita subscriptions duplicadas)
+  // Gerenciamento correto do ciclo de vida do canal
   if (window._chatChannel) {
       supabase.removeChannel(window._chatChannel);
       window._chatChannel = null;
-      console.log('[Chat Realtime] Canal anterior removido.');
+      console.log('[Chat Realtime Lifecycle] Canal anterior removido para evitar duplicidade.');
   }
 
   window._chatChannel = supabase.channel('chat-realtime')
@@ -3729,54 +3728,72 @@ function initChatModule() {
     // ── Novas mensagens ──
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
         const newMsg = payload.new;
-        if (DB.chat_messages.find(m => m.id === newMsg.id)) return; // Deduplication
+        if (DB.chat_messages.find(m => m.id === newMsg.id)) return; // Failsafe deduplication
+        
+        console.log('[Chat Realtime] Nova mensagem recebida:', newMsg.id);
         DB.chat_messages.push(newMsg);
+        
+        // Re-processa e atualiza a UI inteiramente orientada pelo banco
         chatState.conversations = buildChatFromDB();
         chatState.filteredConversations = [...chatState.conversations];
+        
         if (chatState.selectedConversationId) {
-            openConversation(chatState.selectedConversationId);
+            openConversation(chatState.selectedConversationId); // Atualiza mensagens abertas
         } else {
-            renderConversationList(chatState.filteredConversations);
+            renderConversationList(chatState.filteredConversations); // Atualiza sidebar
         }
     })
 
-    // ── Novas conversas (criadas por outro usuário) ──
+    // ── Novas conversas (recebimento passivo) ──
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_conversations' }, payload => {
         const newConv = payload.new;
         if (!DB.chat_conversations.find(c => c.id === newConv.id)) {
+            console.log('[Chat Realtime] Nova conversa detectada:', newConv.id);
             DB.chat_conversations.push(newConv);
-        }
-        chatState.conversations = buildChatFromDB();
-        chatState.filteredConversations = [...chatState.conversations];
-        renderConversationList(chatState.filteredConversations);
-    })
-
-    // ── Novo participante adicionado (alerta o destinatário de conversa privada) ──
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants' }, payload => {
-        const newPart = payload.new;
-        const exists = DB.chat_participants.find(
-            p => p.conversation_id === newPart.conversation_id && p.user_id === newPart.user_id
-        );
-        if (!exists) {
-            (DB.chat_participants = DB.chat_participants || []).push(newPart);
-        }
-
-        // Se o participante inserido é o usuário atual, uma nova conversa apareceu para ele
-        if (window.currentUser && newPart.user_id === window.currentUser.id) {
             chatState.conversations = buildChatFromDB();
             chatState.filteredConversations = [...chatState.conversations];
             renderConversationList(chatState.filteredConversations);
         }
     })
 
-    // ── Callback de status: coleta evidências do estado da conexão ──
-    .subscribe((status, err) => {
-        console.log('[Chat Realtime] Status:', status, err ? err : '');
-        if (status === 'SUBSCRIBED') {
-            console.log('[Chat Realtime] Canal ativo. Realtime funcionando.');
+    // ── Novo participante (gatilho de consistência) ──
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants' }, async payload => {
+        const newPart = payload.new;
+        const exists = DB.chat_participants.find(
+            p => p.conversation_id === newPart.conversation_id && p.user_id === newPart.user_id
+        );
+        if (!exists) {
+            console.log('[Chat Realtime] Novo participante detectado:', newPart.user_id);
+            (DB.chat_participants = DB.chat_participants || []).push(newPart);
         }
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            console.warn('[Chat Realtime] Canal em estado problemático:', status, err);
+
+        // Self-healing: Se o participante for o usuário atual, garante que temos a conversa em memória
+        if (window.currentUser && newPart.user_id === window.currentUser.id) {
+            const convExists = DB.chat_conversations.find(c => c.id === newPart.conversation_id);
+            if (!convExists) {
+                console.warn('[Chat Consistency] Recebeu participante mas a conversa ainda não chegou. Buscando fallback...');
+                const { data } = await supabase.from('chat_conversations').select('*').eq('id', newPart.conversation_id).single();
+                if (data && !DB.chat_conversations.find(c => c.id === data.id)) {
+                    DB.chat_conversations.push(data);
+                }
+            }
+            chatState.conversations = buildChatFromDB();
+            chatState.filteredConversations = [...chatState.conversations];
+            renderConversationList(chatState.filteredConversations);
+        }
+    })
+
+    // ── Auditoria de Lifecycle do Realtime ──
+    .subscribe((status, err) => {
+        console.log(`[Chat Realtime Lifecycle] Transição de estado: ${status}`, err ? err : '');
+        if (status === 'SUBSCRIBED') {
+            console.log('[Chat Realtime Lifecycle] ✅ Conexão estabelecida. Escutando eventos de forma atômica.');
+        } else if (status === 'CHANNEL_ERROR') {
+            console.error('[Chat Realtime Lifecycle] ❌ Erro de canal. O motor do Supabase recusou a conexão (Verifique RLS/Publication).');
+        } else if (status === 'CLOSED') {
+            console.warn('[Chat Realtime Lifecycle] 🔌 Canal fechado.');
+        } else if (status === 'TIMED_OUT') {
+            console.warn('[Chat Realtime Lifecycle] ⏳ Conexão expirou. O SupabaseJS iniciará reconnect automático.');
         }
     });
 
@@ -3966,45 +3983,46 @@ console.log('[CHAT] Displays após alteração:', {
 }
 
 // ── 6. ENVIAR MENSAGEM ────────────────────────────────────────────
-function sendMockMessage() {
+async function sendMessage() {
   const inputEl = document.getElementById('chat-input-field');
+  const sendBtn = document.getElementById('btn-send-message');
   const text    = inputEl?.value?.trim();
 
   if (!text) return;
   if (!chatState.selectedConversationId) {
-      console.warn('[Chat] Nenhuma conversa selecionada.');
+      console.warn('[Chat Event] Tentativa de envio sem conversa selecionada.');
       return;
   }
   if (!window.currentUser) {
-      console.warn('[Chat] currentUser não definido.');
+      console.warn('[Chat Event] Usuário não autenticado.');
       return;
   }
 
   const newMsg = {
-    id: 'm_' + Date.now(),
     conversation_id: chatState.selectedConversationId,
     sender_id: window.currentUser.id,
-    body: text,
-    sent_at: new Date().toISOString()
+    body: text
   };
 
-  // 1. Adiciona localmente de imediato → feedback instantâneo na tela
-  DB.chat_messages.push(newMsg);
+  // 1. UI State: Limpa o input e bloqueia envio adicional (evitar duplo clique)
   inputEl.value = '';
+  if (sendBtn) sendBtn.disabled = true;
 
-  // 2. Re-renderiza a conversa imediatamente (sem esperar o Supabase)
-  chatState.conversations = buildChatFromDB();
-  chatState.filteredConversations = [...chatState.conversations];
-  openConversation(chatState.selectedConversationId);
+  // 2. Persistência Exclusiva (Arquitetura Distribuída)
+  // Removemos o "Mock" local. A tela só atualizará quando o servidor confirmar 
+  // o insert e devolver o evento via Realtime WebSockets.
+  console.log('[Chat Event] Aguardando confirmação transacional do Supabase...');
+  const { error } = await supabase.from('chat_messages').insert(newMsg);
+  
+  if (sendBtn) sendBtn.disabled = false;
 
-  // 3. Persiste no Supabase em background
-  supabase.from('chat_messages').insert(newMsg).then(({ error }) => {
-      if (error) {
-          console.error('[Chat] Erro ao persistir mensagem:', error);
-      } else {
-          console.log('[Chat] Mensagem salva no Supabase.');
-      }
-  });
+  if (error) {
+      console.error('[Chat Event] ❌ Falha crítica ao persistir mensagem:', error);
+      alert('Erro ao enviar mensagem. Tente novamente.');
+      inputEl.value = text; // Rollback UI
+  } else {
+      console.log('[Chat Event] ✅ Mensagem salva! Aguardando o eco do Realtime para renderizar na tela.');
+  }
 }
 // ================================================================
 // EXPORTAÇÃO DO MÓDULO DE CHAT
@@ -4020,7 +4038,7 @@ const ChatModule = {
     if (window._chatChannel) {
         supabase.removeChannel(window._chatChannel);
         window._chatChannel = null;
-        console.log('[Chat Realtime] Canal removido ao sair do módulo.');
+        console.log('[Chat Realtime Lifecycle] Canal removido ao sair do módulo (Cleanup).');
     }
     chatState.selectedConversationId = null;
   },
@@ -4028,7 +4046,7 @@ const ChatModule = {
   openConversation,
 
   sendMessage() {
-    sendMockMessage();
+    sendMessage(); // Removido o mock, agora chama a função estritamente distribuída
   },
 
   async renderContextualCommentPanel(entityType, entityId, container) {
@@ -4193,12 +4211,11 @@ function renderNewChatUserList(query) {
   });
 }
 
-// ── createConversation: cria conversa privada e persiste no Supabase ──
+// ── createConversation: criação atômica via Stored Procedure (RPC) ──
 async function createConversation(targetUser) {
   if (!window.currentUser) return null;
 
-  // Verifica duplicata pela tabela chat_participants:
-  // Uma conversa privada já existe se ambos os usuários são participantes de uma mesma conversa do tipo 'Privado'
+  // Verifica duplicata localmente primeiro para evitar request de rede atoa
   const myConvIds = new Set(
       (DB.chat_participants || [])
           .filter(p => p.user_id === window.currentUser.id)
@@ -4214,40 +4231,37 @@ async function createConversation(targetUser) {
       return conv && conv.type === 'Privado' && theirConvIds.has(id);
   });
   if (existingId) {
-      console.log('[Chat] Reutilizando conversa privada existente:', existingId);
+      console.log('[Chat RPC] Reutilizando conversa privada existente (Local Cache):', existingId);
       return existingId;
   }
 
-  // UUID gerado pelo cliente (criptograficamente único, sem dependência de timestamp)
-  const newId = crypto.randomUUID();
-  const newConvRecord = {
-      id: newId,
-      name: `${window.currentUser.nome} & ${targetUser.nome}`,
-      type: 'Privado',
-      created_at: new Date().toISOString()
-  };
-  const participants = [
-      { conversation_id: newId, user_id: window.currentUser.id },
-      { conversation_id: newId, user_id: targetUser.id }
-  ];
+  console.log('[Chat RPC] Iniciando transação atômica para criação de conversa...');
+  
+  // Executa RPC Atômica. O Supabase fará tudo num único bloco BEGIN/COMMIT.
+  const { data: convId, error } = await supabase.rpc('create_private_conversation', {
+      user1_id: window.currentUser.id,
+      user2_id: targetUser.id,
+      user1_name: window.currentUser.nome,
+      user2_name: targetUser.nome
+  });
 
-  // 1. Persiste conversa no Supabase
-  const { error: convError } = await supabase.from('chat_conversations').insert(newConvRecord);
-  if (convError) console.error('[Chat] Erro ao criar chat_conversations:', convError);
+  if (error) {
+      console.error('[Chat RPC] ❌ Falha crítica na transação:', error);
+      alert('Não foi possível iniciar a conversa devido a um erro de integridade do sistema.');
+      return null;
+  }
 
-  // 2. Persiste participantes no Supabase (isso dispara o Realtime para o destinatário)
-  const { error: partError } = await supabase.from('chat_participants').insert(participants);
-  if (partError) console.error('[Chat] Erro ao inserir chat_participants:', partError);
+  console.log('[Chat RPC] ✅ Transação concluída. Conversa:', convId);
 
-  // 3. Adiciona ao banco local
-  DB.chat_conversations.push(newConvRecord);
-  (DB.chat_participants = DB.chat_participants || []).push(...participants);
-
-  // 4. Reconstrói estado
+  // Força uma resincronização do DB local para garantir que possuímos a 
+  // conversa e os participantes recém criados antes de tentar renderizar a interface
+  // (caso o Realtime ainda não tenha processado em background).
+  await syncDBFromSupabase();
+  
   chatState.conversations = buildChatFromDB();
   chatState.filteredConversations = [...chatState.conversations];
 
-  return newId;
+  return convId;
 }
 
 // ── bindNewChatModalEvents: registra todos os listeners do modal ──
