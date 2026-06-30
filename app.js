@@ -3999,9 +3999,11 @@ async function sendMessage() {
   }
 
   const newMsg = {
+    id: crypto.randomUUID(),
     conversation_id: chatState.selectedConversationId,
     sender_id: window.currentUser.id,
-    body: text
+    body: text,
+    sent_at: new Date().toISOString()
   };
 
   // 1. UI State: Limpa o input e bloqueia envio adicional (evitar duplo clique)
