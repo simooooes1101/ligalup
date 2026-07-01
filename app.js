@@ -44,13 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let calendarCurrentDate = new Date();
     let calendarSelectedDate = new Date();
 
-    // URL base do backend (tenta localhost em dev)
-    const API_BASE = 'http://localhost:5000';
-    let backendOnline = false;
 
-    // ========================================================================
-    // PERMISSÕES E ACESSOS — extraídos para user_access.js (window.UserAccess)
-    // ========================================================================
 
     // ------------------------------------------------------------------------
     // 2. SISTEMA DE SIMULAÇÃO DE BANCO DE DADOS POSTGRESQL (TRIGGER ENGINE)
@@ -781,36 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    async function updateConnectionStatus() {
-        const badge = document.getElementById('login-db-status');
-        if (!badge) return;
-        const connBadge = document.getElementById('connection-status-badge');
 
-        let online = false;
-        if (typeof window.supabase !== 'undefined') {
-            online = true;
-        }
-
-        if (online) {
-            badge.style.display = 'none';
-            if (connBadge) {
-                connBadge.className = 'badge';
-                connBadge.style.cssText = 'padding:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center;';
-                connBadge.innerHTML = '<i class="fas fa-database"></i>';
-                connBadge.title = 'Banco de Dados Conectado';
-            }
-        } else {
-            badge.style.display = '';
-            badge.className = 'login-status-badge offline';
-            badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Banco Local (Simulado)';
-            if (connBadge) {
-                connBadge.className = 'badge badge-secondary';
-                connBadge.style.cssText = 'padding:8px 12px;';
-                connBadge.innerHTML = '<i class="fas fa-flask"></i> Ambiente Simulado';
-                connBadge.title = '';
-            }
-        }
-    }
 
     // ------------------------------------------------------------------------
     // 3. AUTENTICAÇÃO — gerida pelo módulo auth.js (window.initAuth)
@@ -949,6 +914,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.currentUser = user;
         },
         logSQL,
+        refreshAllUI
     });
 
     // --- Inicializa o módulo GED e Documentos (ged_docs.js) ---
